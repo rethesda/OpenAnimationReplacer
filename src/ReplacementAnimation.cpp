@@ -20,7 +20,7 @@ ReplacementAnimationFile::ReplacementAnimationFile(std::string_view a_fullPath, 
 {
 	if (Settings::bFilterOutDuplicateAnimations) {
 		for (auto& variant : *variants) {
-			variant.hash = (AnimationFileHashCache::CalculateHash(variant.fullPath));
+			variant.hash = AnimationFileHashCache::CalculateHash(variant.fullPath);
 		}
 	}
 }
@@ -305,6 +305,12 @@ RE::BSVisit::BSVisitControl ReplacementAnimation::ForEachVariant(const std::func
 	}
 
 	return RE::BSVisit::BSVisitControl::kContinue;
+}
+
+std::string_view ReplacementAnimation::GetFilename() const
+{
+	auto pos = _path.find_last_of("/\\");
+	return pos != std::string_view::npos ? _path.substr(pos + 1) : _path;
 }
 
 bool ReplacementAnimation::EvaluateConditions(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator) const

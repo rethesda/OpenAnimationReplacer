@@ -6,6 +6,7 @@
 namespace Conditions
 {
 	[[nodiscard]] std::string_view CorrectLegacyConditionName(std::string_view a_conditionName);
+	[[nodiscard]] std::string_view CorrectConditionName(std::string_view a_conditionName);
 	[[nodiscard]] std::unique_ptr<ICondition> CreateConditionFromString(std::string_view a_line);
 	[[nodiscard]] std::unique_ptr<ICondition> CreateConditionFromJson(rapidjson::Value& a_value, ConditionSet* a_parentConditionSet = nullptr);
 	[[nodiscard]] std::unique_ptr<ICondition> CreateCondition(std::string_view a_conditionName);
@@ -2763,5 +2764,40 @@ namespace Conditions
 
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
+	};
+
+	class IsStaggeredCondition : public ConditionBase
+	{
+	public:
+		[[nodiscard]] RE::BSString GetName() const override { return "IsStaggered"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Checks if the actor is staggered."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 1, 0 }; }
+
+	protected:
+		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
+	};
+
+	class CastingSpellCondition : public ConditionBase
+	{
+	public:
+		CastingSpellCondition()
+		{
+			castingSourceComponent = AddComponent<NumericConditionComponent>("Casting source", "The source of the spell being cast.");
+		}
+
+		void PostInitialize() override;
+
+		[[nodiscard]] RE::BSString GetArgument() const override;
+
+		[[nodiscard]] RE::BSString GetName() const override { return "CastingSpell"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Checks if the actor is currently casting a spell with the specified casting source."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 1, 0 }; }
+
+		NumericConditionComponent* castingSourceComponent;
+
+	protected:
+		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
+
+		static std::map<int32_t, std::string_view> GetEnumMap();
 	};
 }

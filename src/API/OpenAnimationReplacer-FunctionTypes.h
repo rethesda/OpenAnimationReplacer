@@ -44,8 +44,9 @@ namespace Functions
 	enum class FunctionAPIVersion : uint8_t
 	{
 		V1 = 1,
+		V2 = 2,
 
-		Latest = V1
+		Latest = V2
 	};
 
 	enum class EssentialState : uint8_t
@@ -129,6 +130,11 @@ namespace Functions
 		virtual bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_subMod, Trigger* a_trigger = nullptr) const = 0;
 
 		FunctionSet* _parentSet = nullptr;
+
+		// API version 2+ only
+	public:
+		[[nodiscard]] virtual RE::BSString GetComment() const = 0;
+		virtual void SetComment(const char* a_comment) = 0;
 	};
 
 	// a function can have many function components
@@ -385,5 +391,9 @@ namespace Functions
 
 	protected:
 		std::unique_ptr<IFunction> _wrappedFunction = nullptr;
+
+		// API version 2+ only
+		[[nodiscard]] RE::BSString GetComment() const override { return _wrappedFunction->GetComment(); }
+		void SetComment(const char* a_comment) override { _wrappedFunction->SetComment(a_comment); }
 	};
 }

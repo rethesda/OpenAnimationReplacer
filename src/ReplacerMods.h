@@ -175,7 +175,7 @@ private:
 	bool _bKeepRandomResultsOnLoop_DEPRECATED = false;
 	bool _bShareRandomResults_DEPRECATED = false;
 
-	std::unordered_map<std::filesystem::path, ReplacementAnimationFile, CaseInsensitivePathHash, CaseInsensitivePathEqual> _replacementAnimationFiles;
+	std::unordered_map<std::string, ReplacementAnimationFile> _replacementAnimationFiles;
 
 	std::unique_ptr<Conditions::ConditionSet> _conditionSet;
 	std::unique_ptr<Conditions::ConditionSet> _synchronizedConditionSet = nullptr;
@@ -340,6 +340,17 @@ public:
 	uint16_t synchronizedClipIDOffset = 0;
 
 protected:
-	std::unordered_map<std::string, uint16_t> _fileHashToIndexMap;
+	struct DuplicateHashCandidate
+	{
+		DuplicateHashCandidate(std::string_view a_path, uint16_t a_index) :
+			path(a_path),
+			index(a_index)
+		{}
+
+		std::string path;
+		uint16_t index;
+	};
+
+	std::unordered_map<std::string, std::vector<DuplicateHashCandidate>> _fileHashToIndexMap;
 	uint32_t _filteredDuplicates = 0;
 };

@@ -538,6 +538,19 @@ RE::hkbClipGenerator* ActiveClip::GetLastBlendingClipGenerator() const
 	return reinterpret_cast<RE::hkbClipGenerator*>(&_blendingClipGenerators.back()->clipGenerator);
 }
 
+std::string_view ActiveClip::GetCurrentFilename() const
+{
+	if (auto variant = GetCurrentVariant()) {
+		return variant->GetFilename();
+	}
+	
+	if (auto replacementAnim = GetReplacementAnimation()) {
+		return replacementAnim->GetFilename();
+	}
+
+	return {};
+}
+
 bool ActiveClip::IsInLoopSequence()
 {
 	if (_currentReplacementAnimation && _currentReplacementAnimation->HasVariants()) {

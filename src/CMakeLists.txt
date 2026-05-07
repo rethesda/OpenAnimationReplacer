@@ -215,22 +215,22 @@ if(("${CommonLibSSEPath}" STREQUAL "CommonLibSSEPath-NOTFOUND") OR "${CommonLibS
 endif()
 
 find_package(binary_io REQUIRED CONFIG)
-find_package(CryptoPP REQUIRED CONFIG)
 find_package(imgui REQUIRED CONFIG)
 find_package(mmio REQUIRED CONFIG)
 find_package(RapidJSON REQUIRED CONFIG)
 find_package(xbyak REQUIRED CONFIG)
+find_package(xxhash REQUIRED CONFIG)
 
 target_link_libraries(
 	"${PROJECT_NAME}"
 	PRIVATE
 		CommonLibSSE::CommonLibSSE
 		binary_io::binary_io
-		cryptopp::cryptopp
 		imgui::imgui
 		mmio::mmio
 		rapidjson
 		xbyak::xbyak
+		xxHash::xxhash
 )
 
 target_precompile_headers(

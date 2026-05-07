@@ -15,6 +15,7 @@ namespace UI
 
 	namespace UICommon
 	{
+		constexpr ImVec4 NO_COLOR(0.f, 0.f, 0.f, 0.f);
 		constexpr ImVec4 SUCCESS_COLOR(0.2f, 0.8f, 0.2f, 1.f);
 		constexpr ImVec4 SUCCESS_BG_COLOR(0.2f, 0.8f, 0.2f, 0.35f);
 		constexpr ImVec4 FAIL_COLOR(0.8f, 0.2f, 0.2f, 1.f);
@@ -51,21 +52,27 @@ namespace UI
 		constexpr ImVec4 CONDITION_SHARED_STATE_BORDER_COLOR(0.45f, 0.45f, 0.22f, 1.00f);
 		constexpr ImVec4 YELLOW_COLOR(1.f, 1.f, 0.f, 1.f);
 		constexpr ImVec4 BLACK_COLOR(0.f, 0.f, 0.f, 1.f);
+		constexpr ImVec4 COMMENT_COLOR(0.34f, 0.65f, 0.29f, 1.f);
 
 		void TextUnformattedColored(const ImVec4& a_col, const char* a_text, const char* a_textEnd = nullptr);
 		void TextUnformattedDisabled(const char* a_text, const char* a_textEnd = nullptr);
 		void TextUnformattedWrapped(const char* a_text, const char* a_textEnd = nullptr);
-		bool TextUnformattedEllipsisNoTooltip(const char* a_text, const char* a_textEnd, float a_maxWidth);
+		bool TextUnformattedEllipsisNoTooltip(const char* a_text, const char* a_textEnd, float a_maxWidth, const ImVec4& a_col = NO_COLOR);
 		bool TextUnformattedEllipsis(const char* a_text, const char* a_textEnd = nullptr, float a_maxWidth = 0.f);
+		bool TextUnformattedEllipsisColored(const ImVec4& a_col, const char* a_text, const char* a_textEnd = nullptr, float a_maxWidth = 0.f);
 		bool TextUnformattedEllipsisShort(const char* a_fullText, const char* a_shortText, const char* a_shortTextEnd = nullptr, float a_maxWidth = 0.f);
 
-		inline void AddTooltip(const char* a_desc, ImGuiHoveredFlags a_flags = ImGuiHoveredFlags_DelayNormal)
+		inline void AddTooltip(const char* a_desc, ImGuiHoveredFlags a_flags = ImGuiHoveredFlags_DelayNormal, const ImVec4& a_col = NO_COLOR)
 		{
 			if (ImGui::IsItemHovered(a_flags)) {
 				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8, 8 });
 				if (ImGui::BeginTooltip()) {
 					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 50.0f);
-					ImGui::TextUnformatted(a_desc);
+					if (a_col.w != 0.f) {
+						TextUnformattedColored(a_col, a_desc);
+					} else {
+						ImGui::TextUnformatted(a_desc);
+					}
 					ImGui::PopTextWrapPos();
 					ImGui::EndTooltip();
 				}

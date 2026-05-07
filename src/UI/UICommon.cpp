@@ -33,7 +33,7 @@ namespace UI::UICommon
 		}
 	}
 
-	bool TextUnformattedEllipsisNoTooltip(const char* a_text, const char* a_textEnd, float a_maxWidth)
+	bool TextUnformattedEllipsisNoTooltip(const char* a_text, const char* a_textEnd, float a_maxWidth, const ImVec4& a_col)
 	{
 		// Accept null ranges
 		if (a_text == a_textEnd) {
@@ -56,7 +56,12 @@ namespace UI::UICommon
 		float textWidth = ImGui::CalcTextSize(a_text, a_textEnd).x;
 
 		if (textWidth <= a_maxWidth) {
-			ImGui::TextUnformatted(a_text, a_textEnd);
+			if (a_col.w != 0.f) {
+				TextUnformattedColored(a_col, a_text, a_textEnd);
+			} else {
+				ImGui::TextUnformatted(a_text, a_textEnd);
+			}
+			
 			return false;
 		}
 
@@ -70,7 +75,11 @@ namespace UI::UICommon
 		std::string shortenedText(a_text, a_textEnd);
 		shortenedText.append(ellipsis);
 
-		ImGui::TextUnformatted(shortenedText.data(), shortenedText.data() + shortenedText.length());
+		if (a_col.w != 0.f) {
+			TextUnformattedColored(a_col, shortenedText.data(), shortenedText.data() + shortenedText.length());
+		} else {
+			ImGui::TextUnformatted(shortenedText.data(), shortenedText.data() + shortenedText.length());
+		}
 
 		return true;
 	}
@@ -91,6 +100,28 @@ namespace UI::UICommon
 
 		if (TextUnformattedEllipsisNoTooltip(a_text, a_textEnd, a_maxWidth)) {
 			AddTooltip(fullText.data(), ImGuiHoveredFlags_DelayShort);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool TextUnformattedEllipsisColored(const ImVec4& a_col, const char* a_text, const char* a_textEnd, float a_maxWidth)
+	{
+		// Accept null ranges
+		if (a_text == a_textEnd) {
+			a_text = a_textEnd = "";
+		}
+
+		// Calculate length
+		if (a_textEnd == nullptr) {
+			a_textEnd = a_text + strlen(a_text);
+		}
+
+		const std::string fullText(a_text, a_textEnd);
+
+		if (TextUnformattedEllipsisNoTooltip(a_text, a_textEnd, a_maxWidth, a_col)) {
+			AddTooltip(fullText.data(), ImGuiHoveredFlags_DelayShort, a_col);
 			return true;
 		}
 

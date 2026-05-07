@@ -7,11 +7,191 @@
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/prettywriter.h>
 
+#include <array>
+#include <atomic>
+
 #include "OpenAnimationReplacer.h"
 #include "Settings.h"
 
 namespace Parsing
 {
+	namespace
+	{
+		constexpr auto timingBucketCount = static_cast<size_t>(TimingBucket::kTotal);
+		constexpr auto timingCounterCount = static_cast<size_t>(TimingCounter::kTotal);
+
+		enum class WallTimingBucket : uint8_t
+		{
+			kDiscovery,
+			kExecuteParseJobs,
+			kOARModJobs,
+			kLegacyCustomConditionJobs,
+			kLegacyPluginJobs,
+			kTotal
+		};
+
+		constexpr auto wallTimingBucketCount = static_cast<size_t>(WallTimingBucket::kTotal);
+
+		std::array<std::atomic<int64_t>, timingBucketCount> timingNanoseconds;
+		std::array<std::atomic<uint64_t>, timingBucketCount> timingCounts;
+		std::array<std::atomic<uint64_t>, timingCounterCount> timingCounters;
+		std::array<int64_t, wallTimingBucketCount> wallTimingNanoseconds;
+		std::array<uint64_t, wallTimingBucketCount> wallTimingCounts;
+
+		constexpr std::string_view GetTimingBucketName(TimingBucket a_bucket)
+		{
+			switch (a_bucket) {
+			case TimingBucket::kModJson:
+				return "Mod JSON";
+			case TimingBucket::kSubModJson:
+				return "Submod JSON";
+			case TimingBucket::kConditionsTxt:
+				return "Legacy conditions.txt";
+			case TimingBucket::kAnimationDirectoryScan:
+				return "Animation directory scans";
+			case TimingBucket::kAnimationFileHash:
+				return "Animation file hash/read";
+			case TimingBucket::kSetAnimationFiles:
+				return "Set animation files";
+			case TimingBucket::kCacheAnimationPathSubMods:
+				return "Cache animation path map";
+			default:
+				return "Unknown";
+			}
+		}
+
+		double ToMilliseconds(const int64_t a_nanoseconds)
+		{
+			return std::chrono::duration<double, std::milli>(std::chrono::nanoseconds(a_nanoseconds)).count();
+		}
+
+		constexpr std::string_view GetWallTimingBucketName(WallTimingBucket a_bucket)
+		{
+			switch (a_bucket) {
+			case WallTimingBucket::kDiscovery:
+				return "Discovery";
+			case WallTimingBucket::kExecuteParseJobs:
+				return "Execute parse jobs";
+			case WallTimingBucket::kOARModJobs:
+				return "Waiting for OAR mod jobs";
+			case WallTimingBucket::kLegacyCustomConditionJobs:
+				return "Waiting for DAR _CustomConditions jobs";
+			case WallTimingBucket::kLegacyPluginJobs:
+				return "Waiting for DAR plugin jobs";
+			default:
+				return "Unknown";
+			}
+		}
+
+		void AddWallTiming(WallTimingBucket a_bucket, std::chrono::nanoseconds a_duration)
+		{
+			if constexpr (bEnableParseTiming) {
+				const auto index = static_cast<size_t>(a_bucket);
+				wallTimingNanoseconds[index] += a_duration.count();
+				++wallTimingCounts[index];
+			}
+		}
+
+		class ScopedWallTimer
+		{
+		public:
+			explicit ScopedWallTimer(WallTimingBucket a_bucket) :
+				_bucket(a_bucket)
+			{
+				if constexpr (bEnableParseTiming) {
+					_startTime = std::chrono::steady_clock::now();
+				}
+			}
+
+			ScopedWallTimer(const ScopedWallTimer&) = delete;
+			ScopedWallTimer& operator=(const ScopedWallTimer&) = delete;
+
+			~ScopedWallTimer()
+			{
+				if constexpr (bEnableParseTiming) {
+					AddWallTiming(_bucket, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - _startTime));
+				}
+			}
+
+		private:
+			WallTimingBucket _bucket;
+			std::chrono::steady_clock::time_point _startTime;
+		};
+	}
+
+	void ResetTimingStats()
+	{
+		if constexpr (bEnableParseTiming) {
+			for (auto& timing : timingNanoseconds) {
+				timing.store(0, std::memory_order_relaxed);
+			}
+			for (auto& count : timingCounts) {
+				count.store(0, std::memory_order_relaxed);
+			}
+			for (auto& counter : timingCounters) {
+				counter.store(0, std::memory_order_relaxed);
+			}
+			wallTimingNanoseconds.fill(0);
+			wallTimingCounts.fill(0);
+		}
+	}
+
+	void LogTimingStats()
+	{
+		if constexpr (bEnableParseTiming) {
+			logger::info("Accumulated parsing timings (worker-time, may exceed wall time with async parsing):");
+			for (size_t i = 0; i < timingBucketCount; ++i) {
+				const auto duration = timingNanoseconds[i].load(std::memory_order_relaxed);
+				const auto count = timingCounts[i].load(std::memory_order_relaxed);
+				if (count > 0) {
+					logger::info("  {}: {:.3f}ms ({} calls)", GetTimingBucketName(static_cast<TimingBucket>(i)), ToMilliseconds(duration), count);
+				}
+			}
+
+			const auto hashCalculated = timingCounters[static_cast<size_t>(TimingCounter::kAnimationHashCalculated)].load(std::memory_order_relaxed);
+			const auto hashCacheHits = timingCounters[static_cast<size_t>(TimingCounter::kAnimationHashCacheHit)].load(std::memory_order_relaxed);
+			const auto hashFailures = timingCounters[static_cast<size_t>(TimingCounter::kAnimationHashFailed)].load(std::memory_order_relaxed);
+			if (hashCalculated || hashCacheHits || hashFailures) {
+				logger::info("  Animation hash details: {} calculated, {} cache hits, {} failures", hashCalculated, hashCacheHits, hashFailures);
+			}
+
+			const auto directoryEntries = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryEntriesSeen)].load(std::memory_order_relaxed);
+			const auto directoryDirectories = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryDirectoriesSeen)].load(std::memory_order_relaxed);
+			const auto directoryFiles = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryFilesSeen)].load(std::memory_order_relaxed);
+			const auto directoryHkxFiles = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryHkxFilesFound)].load(std::memory_order_relaxed);
+			const auto directoryInvalidPaths = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryInvalidPaths)].load(std::memory_order_relaxed);
+			const auto directoryHiddenRecursionSkips = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryHiddenRecursionSkips)].load(std::memory_order_relaxed);
+			if (directoryEntries || directoryDirectories || directoryFiles || directoryHkxFiles || directoryInvalidPaths || directoryHiddenRecursionSkips) {
+				logger::info("  Directory scan details: {} entries, {} directories, {} files, {} hkx files, {} invalid paths, {} hidden recursion skips", directoryEntries, directoryDirectories, directoryFiles, directoryHkxFiles, directoryInvalidPaths, directoryHiddenRecursionSkips);
+			}
+
+			logger::info("Parsing wall timings (main-thread waits; nested phases may overlap with worker-time above):");
+			for (size_t i = 0; i < wallTimingBucketCount; ++i) {
+				const auto duration = wallTimingNanoseconds[i];
+				const auto count = wallTimingCounts[i];
+				if (count > 0) {
+					logger::info("  {}: {:.3f}ms ({} calls)", GetWallTimingBucketName(static_cast<WallTimingBucket>(i)), ToMilliseconds(duration), count);
+				}
+			}
+		}
+	}
+
+	void AddTiming(TimingBucket a_bucket, std::chrono::nanoseconds a_duration)
+	{
+		if constexpr (bEnableParseTiming) {
+			const auto index = static_cast<size_t>(a_bucket);
+			timingNanoseconds[index].fetch_add(a_duration.count(), std::memory_order_relaxed);
+			timingCounts[index].fetch_add(1, std::memory_order_relaxed);
+		}
+	}
+
+	void AddTimingCounter(TimingCounter a_counter)
+	{
+		if constexpr (bEnableParseTiming) {
+			timingCounters[static_cast<size_t>(a_counter)].fetch_add(1, std::memory_order_relaxed);
+		}
+	}
+
 	ConditionsTxtFile::ConditionsTxtFile(const std::filesystem::path& a_fileName) :
 		file(a_fileName),
 		filename(a_fileName.string())
@@ -68,6 +248,8 @@ namespace Parsing
 
 	std::unique_ptr<Conditions::ConditionSet> ParseConditionsTxt(const std::filesystem::path& a_txtPath)
 	{
+		ScopedTimer timer(TimingBucket::kConditionsTxt);
+
 		ConditionsTxtFile txt(a_txtPath);
 
 		std::string line;
@@ -78,6 +260,8 @@ namespace Parsing
 
 	bool DeserializeMod(const std::filesystem::path& a_jsonPath, DeserializeMode a_deserializeMode, ModParseResult& a_outParseResult)
 	{
+		ScopedTimer timer(TimingBucket::kModJson);
+
 		mmio::mapped_file_source file;
 		if (file.open(a_jsonPath)) {
 			//rapidjson::StringStream stream{ reinterpret_cast<const char*>(file.data()) };
@@ -166,6 +350,8 @@ namespace Parsing
 
 	bool DeserializeSubMod(std::filesystem::path a_jsonPath, DeserializeMode a_deserializeMode, SubModParseResult& a_outParseResult)
 	{
+		ScopedTimer timer(TimingBucket::kSubModJson);
+
 		mmio::mapped_file_source file;
 		if (file.open(a_jsonPath)) {
 			//rapidjson::StringStream stream{ reinterpret_cast<const char*>(file.data()) };
@@ -601,12 +787,220 @@ namespace Parsing
 		return static_cast<uint16_t>(-1);
 	}
 
-	template <typename T>
-	std::future<T> MakeFuture(T& a_t)
+	struct ParseJobs
 	{
-		std::promise<T> p;
-		p.set_value(std::forward<T>(a_t));
-		return p.get_future();
+		std::vector<std::filesystem::path> modDirectories;
+		std::vector<std::filesystem::path> legacyCustomConditionDirectories;
+		std::vector<std::filesystem::directory_entry> legacyPluginDirectories;
+	};
+
+	class WorkerPool
+	{
+	public:
+		explicit WorkerPool(std::size_t a_workerCount)
+		{
+			for (std::size_t i = 0; i < a_workerCount; ++i) {
+				_threads.emplace_back([this] {
+					Run();
+				});
+			}
+		}
+
+		~WorkerPool()
+		{
+			{
+				std::lock_guard lock(_mutex);
+				_stopping = true;
+			}
+
+			_cv.notify_all();
+
+			for (auto& thread : _threads) {
+				if (thread.joinable()) {
+					thread.join();
+				}
+			}
+		}
+
+		template <class F>
+		auto Enqueue(F&& a_func)
+		{
+			using Result = std::invoke_result_t<std::decay_t<F>>;
+
+			auto task = std::make_shared<std::packaged_task<Result()>>(std::forward<F>(a_func));
+			auto future = task->get_future();
+
+			{
+				std::lock_guard lock(_mutex);
+				_jobs.emplace([task] {
+					(*task)();
+				});
+			}
+
+			_cv.notify_one();
+			return future;
+		}
+
+	private:
+		void Run()
+		{
+			while (true) {
+				std::function<void()> job;
+
+				{
+					std::unique_lock lock(_mutex);
+					_cv.wait(lock, [this] {
+						return _stopping || !_jobs.empty();
+					});
+
+					if (_stopping && _jobs.empty()) {
+						return;
+					}
+
+					job = std::move(_jobs.front());
+					_jobs.pop();
+				}
+
+				job();
+			}
+		}
+
+		std::vector<std::thread> _threads;
+		std::queue<std::function<void()>> _jobs;
+		std::mutex _mutex;
+		std::condition_variable _cv;
+		bool _stopping = false;
+	};
+
+	void DiscoverOARModJobs(const std::filesystem::directory_entry& a_oarDirectory, ParseJobs& a_outParseJobs)
+	{
+		for (const auto& subEntry : std::filesystem::directory_iterator(a_oarDirectory)) {
+			if (Utils::IsDirectory(subEntry)) {
+				// We're in a mod folder. We have the subfolders here and a json.
+				a_outParseJobs.modDirectories.emplace_back(subEntry.path());
+			}
+		}
+	}
+
+	void DiscoverLegacyCustomConditionJobs(const std::filesystem::directory_entry& a_customConditionsDirectory, ParseJobs& a_outParseJobs)
+	{
+		for (const auto& subEntry : std::filesystem::directory_iterator(a_customConditionsDirectory)) {
+			if (Utils::IsDirectory(subEntry)) {
+				a_outParseJobs.legacyCustomConditionDirectories.emplace_back(subEntry.path());
+			}
+		}
+	}
+
+	void DiscoverLegacyJobs(const std::filesystem::directory_entry& a_legacyDirectory, ParseJobs& a_outParseJobs)
+	{
+		for (const auto& subEntry : std::filesystem::directory_iterator(a_legacyDirectory)) {
+			if (!Utils::IsDirectory(subEntry) || !IsPathValid(subEntry.path())) {
+				continue;
+			}
+
+			if (Utils::CompareStringsIgnoreCase(subEntry.path().stem().string(), "_CustomConditions"sv)) {
+				// We're in the DAR _CustomConditions directory.
+				DiscoverLegacyCustomConditionJobs(subEntry, a_outParseJobs);
+			} else {
+				a_outParseJobs.legacyPluginDirectories.emplace_back(subEntry);
+			}
+		}
+	}
+
+	ParseJobs DiscoverParseJobs(const std::filesystem::directory_entry& a_directory)
+	{
+		ParseJobs parseJobs;
+
+		static constexpr auto oarFolderName = "openanimationreplacer"sv;
+		static constexpr auto legacyFolderName = "dynamicanimationreplacer"sv;
+
+		for (std::filesystem::recursive_directory_iterator i(a_directory), end; i != end; ++i) {
+			auto entry = *i;
+			if (!Utils::IsDirectory(entry)) {
+				continue;
+			}
+
+			if (!IsPathValid(entry.path())) {
+				i.disable_recursion_pending();
+				continue;
+			}
+
+			std::string stemString = entry.path().stem().string();
+
+			if (Utils::CompareStringsIgnoreCase(stemString, oarFolderName)) {
+				DiscoverOARModJobs(entry, parseJobs);
+				i.disable_recursion_pending();
+			} else if (Utils::CompareStringsIgnoreCase(stemString, legacyFolderName)) {
+				DiscoverLegacyJobs(entry, parseJobs);
+				i.disable_recursion_pending();
+			}
+		}
+
+		return parseJobs;
+	}
+
+	void AppendLegacyParseResults(std::vector<SubModParseResult>& a_parseResults, ParseResults& a_outParseResults)
+	{
+		for (auto& subModParseResult : a_parseResults) {
+			if (subModParseResult.bSuccess) {
+				a_outParseResults.legacyParseResults.emplace_back(std::move(subModParseResult));
+			}
+		}
+	}
+
+	void ExecuteParseJobs(const ParseJobs& a_parseJobs, ParseResults& a_outParseResults)
+	{
+		ScopedWallTimer executeTimer(WallTimingBucket::kExecuteParseJobs);
+		const auto workerCount = std::clamp(Settings::uParsingWorkerCount, 1u, 32u);
+		logger::info("Using {} parsing worker(s).", workerCount);
+
+		WorkerPool pool(workerCount);
+
+		std::vector<std::future<ModParseResult>> modFutures;
+		std::vector<std::future<SubModParseResult>> legacyFutures;
+		std::vector<std::future<std::vector<SubModParseResult>>> legacyPluginFutures;
+
+		for (const auto& path : a_parseJobs.modDirectories) {
+			modFutures.emplace_back(pool.Enqueue([path] {
+				return ParseModDirectory(std::filesystem::directory_entry(path));
+			}));
+		}
+
+		for (const auto& path : a_parseJobs.legacyCustomConditionDirectories) {
+			legacyFutures.emplace_back(pool.Enqueue([path] {
+				return ParseLegacyCustomConditionsDirectory(std::filesystem::directory_entry(path));
+			}));
+		}
+
+		for (const auto& directory : a_parseJobs.legacyPluginDirectories) {
+			legacyPluginFutures.emplace_back(pool.Enqueue([directory] {
+				return ParseLegacyPluginDirectory(directory);
+			}));
+		}
+
+		{
+			ScopedWallTimer timer(WallTimingBucket::kOARModJobs);
+			for (auto& future : modFutures) {
+				auto modParseResult = future.get();
+				a_outParseResults.modParseResults.emplace_back(std::move(modParseResult));
+			}
+		}
+
+		{
+			ScopedWallTimer timer(WallTimingBucket::kLegacyCustomConditionJobs);
+			for (auto& future : legacyFutures) {
+				auto subModParseResult = future.get();
+				a_outParseResults.legacyParseResults.emplace_back(std::move(subModParseResult));
+			}
+		}
+
+		{
+			ScopedWallTimer timer(WallTimingBucket::kLegacyPluginJobs);
+			for (auto& future : legacyPluginFutures) {
+				auto subModParseResults = future.get();
+				AppendLegacyParseResults(subModParseResults, a_outParseResults);
+			}
+		}
 	}
 
 	void ParseDirectory(const std::filesystem::directory_entry& a_directory, ParseResults& a_outParseResults)
@@ -615,76 +1009,12 @@ namespace Parsing
 			return;
 		}
 
-		static constexpr auto oarFolderName = "openanimationreplacer"sv;
-		static constexpr auto legacyFolderName = "dynamicanimationreplacer"sv;
-		static constexpr auto mohiddenFolderName = ".mohidden"sv;
-
-		std::vector<std::future<void>> futures;
-
-		for (std::filesystem::recursive_directory_iterator i(a_directory), end; i != end; ++i) {
-			auto entry = *i;
-			if (!Utils::IsDirectory(entry)) {
-				continue;
-			}
-
-			if (IsPathValid(entry.path())) {
-				std::string stemString = entry.path().stem().string();
-				if (Utils::CompareStringsIgnoreCase(stemString, oarFolderName)) {
-					// we're in an OAR folder
-					if (Settings::bAsyncParsing) {
-						for (const auto& subEntry : std::filesystem::directory_iterator(entry)) {
-							if (Utils::IsDirectory(subEntry)) {
-								// we're in a mod folder. we have the subfolders here and a json.
-								//Locker locker(a_outParseResults.modParseResultsLock);
-								a_outParseResults.modParseResultFutures.emplace_back(std::async(std::launch::async, ParseModDirectory, subEntry));
-							}
-						}
-					} else {
-						for (const auto& subEntry : std::filesystem::directory_iterator(entry)) {
-							if (Utils::IsDirectory(subEntry)) {
-								// we're in a mod folder. we have the subfolders here and a json.
-								auto modParseResult = ParseModDirectory(subEntry);
-								a_outParseResults.modParseResultFutures.emplace_back(MakeFuture(modParseResult));
-							}
-						}
-					}
-					i.disable_recursion_pending();
-				} else if (Utils::CompareStringsIgnoreCase(stemString, legacyFolderName)) {
-					// we're in the DAR folder
-					for (const auto& subEntry : std::filesystem::directory_iterator(entry)) {
-						if (Utils::IsDirectory(subEntry)) {
-							if (IsPathValid(subEntry.path())) {
-								if (Utils::CompareStringsIgnoreCase(subEntry.path().stem().string(), "_CustomConditions"sv)) {
-									// we're in the _CustomConditions directory
-									for (const auto& subSubEntry : std::filesystem::directory_iterator(subEntry)) {
-										if (Utils::IsDirectory(subSubEntry)) {
-											//Locker locker(a_outParseResults.legacyParseResultsLock);
-											a_outParseResults.legacyParseResultFutures.emplace_back(std::async(std::launch::async, ParseLegacyCustomConditionsDirectory, subSubEntry));
-										}
-									}
-								} else {
-									// we're probably in a folder with a plugin name
-									for (auto subModParseResults = ParseLegacyPluginDirectory(subEntry); auto& subModParseResult : subModParseResults) {
-										if (subModParseResult.bSuccess) {
-											a_outParseResults.legacyParseResultFutures.emplace_back(MakeFuture(subModParseResult));
-										}
-									}
-								}
-							}
-						}
-					}
-					i.disable_recursion_pending();
-				}
-			} else {
-				i.disable_recursion_pending();
-			}
+		ParseJobs parseJobs;
+		{
+			ScopedWallTimer timer(WallTimingBucket::kDiscovery);
+			parseJobs = DiscoverParseJobs(a_directory);
 		}
-
-		if (Settings::bAsyncParsing) {
-			for (auto& future : futures) {
-				future.get();
-			}
-		}
+		ExecuteParseJobs(parseJobs, a_outParseResults);
 	}
 
 	ModParseResult ParseModDirectory(const std::filesystem::directory_entry& a_directory)
@@ -720,29 +1050,12 @@ namespace Parsing
 
 			if (bDeserializeSuccess) {
 				// parse the subfolders
-				if (Settings::bAsyncParsing) {
-					std::vector<std::future<SubModParseResult>> futures;
-					for (const auto& entry : std::filesystem::directory_iterator(a_directory)) {
-						if (Utils::IsDirectory(entry)) {
-							// we're in a mod subfolder. we have the animations here and a json.
-							futures.emplace_back(std::async(std::launch::async, ParseModSubdirectory, entry, false));
-						}
-					}
-
-					for (auto& future : futures) {
-						auto subModParseResult = future.get();
+				for (const auto& entry : std::filesystem::directory_iterator(a_directory)) {
+					if (Utils::IsDirectory(entry)) {
+						// we're in a mod subfolder. we have the animations here and a json.
+						auto subModParseResult = ParseModSubdirectory(entry);
 						if (subModParseResult.bSuccess) {
 							result.subModParseResults.emplace_back(std::move(subModParseResult));
-						}
-					}
-				} else {
-					for (const auto& entry : std::filesystem::directory_iterator(a_directory)) {
-						if (Utils::IsDirectory(entry)) {
-							// we're in a mod subfolder. we have the animations here and a json.
-							auto subModParseResult = ParseModSubdirectory(entry);
-							if (subModParseResult.bSuccess) {
-								result.subModParseResults.emplace_back(std::move(subModParseResult));
-							}
 						}
 					}
 				}
@@ -939,6 +1252,101 @@ namespace Parsing
 		return results;
 	}
 
+	struct AnimationDirectoryEntries
+	{
+		struct Entry
+		{
+			std::filesystem::path path;
+			std::string pathString;
+			std::string filename;
+			std::string extension;
+		};
+
+		std::vector<Entry> directories;
+		std::vector<Entry> hkxFiles;
+	};
+
+	std::optional<std::string> TryConvertPathToString(const std::filesystem::path& a_path)
+	{
+		try {
+			return a_path.string();
+		} catch (const std::system_error&) {
+			auto pathU8String = a_path.u8string();
+			std::string_view pathSv(reinterpret_cast<const char*>(pathU8String.data()), pathU8String.size());
+			logger::warn("invalid path at {}, skipping", pathSv);
+			return std::nullopt;
+		}
+	}
+
+	bool IsHiddenDirectoryName(std::string_view a_filename)
+	{
+		static constexpr auto mohiddenFolderName = ".mohidden"sv;
+		return Utils::ContainsStringIgnoreCase(a_filename, mohiddenFolderName);
+	}
+
+	void ScanAnimationDirectoryFileSystem(const std::filesystem::path& a_directory, bool a_bReadHkxFilenames, AnimationDirectoryEntries& a_outEntries, bool a_bCountHiddenDirectorySkips = false)
+	{
+		for (const auto& directoryEntry : std::filesystem::directory_iterator(a_directory)) {
+			AddTimingCounter(TimingCounter::kDirectoryEntriesSeen);
+
+			if (directoryEntry.is_directory()) {
+				auto filename = TryConvertPathToString(directoryEntry.path().filename());
+				if (!filename) {
+					AddTimingCounter(TimingCounter::kDirectoryInvalidPaths);
+					continue;
+				}
+
+				if (IsHiddenDirectoryName(*filename)) {
+					AddTimingCounter(TimingCounter::kDirectoryInvalidPaths);
+					if (a_bCountHiddenDirectorySkips) {
+						AddTimingCounter(TimingCounter::kDirectoryHiddenRecursionSkips);
+					}
+					continue;
+				}
+
+				AnimationDirectoryEntries::Entry entry;
+				entry.path = directoryEntry.path();
+				entry.pathString = TryConvertPathToString(entry.path).value_or(std::string());
+				entry.filename = std::move(*filename);
+
+				AddTimingCounter(TimingCounter::kDirectoryDirectoriesSeen);
+				a_outEntries.directories.emplace_back(std::move(entry));
+			} else if (directoryEntry.is_regular_file()) {
+				AddTimingCounter(TimingCounter::kDirectoryFilesSeen);
+				if (!Utils::CompareStringsIgnoreCase(directoryEntry.path().extension().string(), ".hkx"sv)) {
+					continue;
+				}
+
+				AnimationDirectoryEntries::Entry entry;
+				entry.path = directoryEntry.path();
+				entry.pathString = TryConvertPathToString(entry.path).value_or(std::string());
+				entry.extension = ".hkx";
+
+				if (a_bReadHkxFilenames) {
+					auto filename = TryConvertPathToString(directoryEntry.path().filename());
+					if (!filename) {
+						AddTimingCounter(TimingCounter::kDirectoryInvalidPaths);
+						continue;
+					}
+					entry.filename = std::move(*filename);
+				}
+
+				AddTimingCounter(TimingCounter::kDirectoryHkxFilesFound);
+				a_outEntries.hkxFiles.emplace_back(std::move(entry));
+			}
+		}
+	}
+
+	AnimationDirectoryEntries ScanAnimationDirectory(const std::filesystem::path& a_directory, bool a_bReadHkxFilenames = true)
+	{
+		AnimationDirectoryEntries result;
+		ScopedTimer timer(TimingBucket::kAnimationDirectoryScan);
+
+		ScanAnimationDirectoryFileSystem(a_directory, a_bReadHkxFilenames, result);
+
+		return result;
+	}
+
 	std::optional<ReplacementAnimationFile> ParseReplacementAnimationEntry(std::string_view a_fullPath)
 	{
 		return ReplacementAnimationFile(a_fullPath);
@@ -948,13 +1356,8 @@ namespace Parsing
 	{
 		std::vector<ReplacementAnimationFile::Variant> variants;
 
-		// iterate over all files
-		for (const auto& fileEntry : std::filesystem::directory_iterator(a_fullVariantsPath)) {
-			if (IsPathValid(fileEntry.path())) {
-				if (Utils::IsRegularFile(fileEntry) && Utils::CompareStringsIgnoreCase(fileEntry.path().extension().string(), ".hkx"sv)) {
-					variants.emplace_back(fileEntry.path().string());
-				}
-			}
+		for (const auto& fileEntry : ScanAnimationDirectory(std::filesystem::path(a_fullVariantsPath), false).hkxFiles) {
+			variants.emplace_back(fileEntry.pathString);
 		}
 
 		if (variants.empty()) {
@@ -964,81 +1367,98 @@ namespace Parsing
 		return ReplacementAnimationFile(a_fullVariantsPath, variants);
 	}
 
-	std::vector<ReplacementAnimationFile> ParseAnimationsInDirectory(const std::filesystem::directory_entry& a_directory, bool a_bIsLegacy /* = false*/)
+	std::vector<ReplacementAnimationFile> ParseNonLegacyAnimationsInDirectory(const std::filesystem::directory_entry& a_directory)
 	{
 		std::vector<ReplacementAnimationFile> result;
+		auto entries = ScanAnimationDirectory(a_directory.path());
 
-		if (!a_bIsLegacy) {
-			std::vector<std::string> filenamesToSkip{};
+		std::vector<std::string> filenamesToSkip{};
 
-			// iterate over directories first
-			for (const auto& fileEntry : std::filesystem::directory_iterator(a_directory)) {
-				if (Utils::IsDirectory(fileEntry)) {
-					if (IsPathValid(fileEntry.path())) {
-						std::string directoryNameString = fileEntry.path().filename().string();
+		for (const auto& fileEntry : entries.directories) {
+			if (fileEntry.filename.starts_with("_variants_"sv)) {
+				// parse variants directory
+				filenamesToSkip.emplace_back(ConvertVariantsPath(fileEntry.filename));
 
-						if (directoryNameString.starts_with("_variants_"sv)) {
-							// parse variants directory
-							filenamesToSkip.emplace_back(ConvertVariantsPath(directoryNameString));
-
-							if (auto anim = ParseReplacementAnimationVariants(fileEntry.path().string())) {
-								result.emplace_back(*anim);
-							}
-						} else {
-							// parse child directory normally
-							// append result
-							auto res = ParseAnimationsInDirectory(fileEntry, a_bIsLegacy);
-							result.reserve(result.size() + res.size());
-							result.insert(result.end(), std::make_move_iterator(res.begin()), std::make_move_iterator(res.end()));
-						}
-					}
+				if (auto anim = ParseReplacementAnimationVariants(fileEntry.pathString)) {
+					result.emplace_back(*anim);
 				}
+			} else {
+				// parse child directory normally
+				// append result
+				auto res = ParseNonLegacyAnimationsInDirectory(std::filesystem::directory_entry(fileEntry.path));
+				result.reserve(result.size() + res.size());
+				result.insert(result.end(), std::make_move_iterator(res.begin()), std::make_move_iterator(res.end()));
+			}
+		}
+
+		for (const auto& fileEntry : entries.hkxFiles) {
+			// check if we should skip this file because the variants directory exists
+			const bool bSkip = std::ranges::any_of(filenamesToSkip, [&](const auto& a_filename) {
+				return fileEntry.filename == a_filename;
+			});
+
+			if (bSkip) {
+				logger::warn("skipping {}{} at {} because a variants directory exists for this animation", fileEntry.filename, fileEntry.extension, fileEntry.pathString);
+				continue;
 			}
 
-			// then iterate over files
-			for (const auto& fileEntry : std::filesystem::directory_iterator(a_directory)) {
-				if (Utils::IsRegularFile(fileEntry)) {
-					if (IsPathValid(fileEntry.path())) {
-						if (Utils::CompareStringsIgnoreCase(fileEntry.path().extension().string(), ".hkx"sv)) {
-							// check if we should skip this file because the variants directory exists
-							auto filenameString = fileEntry.path().filename().string();
-							const bool bSkip = std::ranges::any_of(filenamesToSkip, [&](const auto& a_filename) {
-								return filenameString == a_filename;
-							});
-
-							if (bSkip) {
-								logger::warn("skipping {}{} at {} because a variants directory exists for this animation", filenameString, fileEntry.path().extension().string(), fileEntry.path().string());
-								continue;
-							}
-
-							if (auto anim = ParseReplacementAnimationEntry(fileEntry.path().string())) {
-								result.emplace_back(*anim);
-							}
-						}
-					}
-				}
-			}
-		} else {
-			for (const auto& fileEntry : std::filesystem::recursive_directory_iterator(a_directory)) {
-				if (IsPathValid(fileEntry.path())) {
-					if (Utils::IsRegularFile(fileEntry) && Utils::CompareStringsIgnoreCase(fileEntry.path().extension().string(), ".hkx"sv)) {
-						if (auto anim = ParseReplacementAnimationEntry(fileEntry.path().string())) {
-							result.emplace_back(*anim);
-						}
-					}
-				}
+			if (auto anim = ParseReplacementAnimationEntry(fileEntry.pathString)) {
+				result.emplace_back(*anim);
 			}
 		}
 
 		return result;
 	}
 
-	bool IsPathValid(std::filesystem::path a_path)
+	std::vector<ReplacementAnimationFile> ParseLegacyAnimationsInDirectory(const std::filesystem::directory_entry& a_directory)
+	{
+		std::vector<ReplacementAnimationFile> result;
+		std::vector<AnimationDirectoryEntries::Entry> hkxFiles;
+
+		{
+			ScopedTimer timer(TimingBucket::kAnimationDirectoryScan);
+			std::vector<std::filesystem::path> directoriesToScan{ a_directory.path() };
+
+			while (!directoriesToScan.empty()) {
+				auto directory = std::move(directoriesToScan.back());
+				directoriesToScan.pop_back();
+
+				AnimationDirectoryEntries entries;
+				ScanAnimationDirectoryFileSystem(directory, false, entries, true);
+
+				for (auto& subDirectory : entries.directories) {
+					directoriesToScan.emplace_back(std::move(subDirectory.path));
+				}
+
+				hkxFiles.reserve(hkxFiles.size() + entries.hkxFiles.size());
+				hkxFiles.insert(hkxFiles.end(), std::make_move_iterator(entries.hkxFiles.begin()), std::make_move_iterator(entries.hkxFiles.end()));
+			}
+		}
+
+		for (const auto& fileEntry : hkxFiles) {
+			if (auto anim = ParseReplacementAnimationEntry(fileEntry.pathString)) {
+				result.emplace_back(*anim);
+			}
+		}
+
+		return result;
+	}
+
+	std::vector<ReplacementAnimationFile> ParseAnimationsInDirectory(const std::filesystem::directory_entry& a_directory, bool a_bIsLegacy /* = false*/)
+	{
+		if (a_bIsLegacy) {
+			return ParseLegacyAnimationsInDirectory(a_directory);
+		}
+
+		return ParseNonLegacyAnimationsInDirectory(a_directory);
+	}
+
+	bool IsPathValid(const std::filesystem::path& a_path)
 	{
 		// skip invalid paths
-		std::string pathString;
+		std::string filenameString;
 		try {
-			pathString = a_path.string();
+			filenameString = a_path.filename().string();
 		} catch (const std::system_error&) {
 			auto pathU8String = a_path.u8string();
 			std::string_view pathSv(reinterpret_cast<const char*>(pathU8String.data()), pathU8String.size());
@@ -1048,7 +1468,7 @@ namespace Parsing
 
 		// skip hidden folders
 		static constexpr auto mohiddenFolderName = ".mohidden"sv;
-		if (Utils::ContainsStringIgnoreCase(pathString, mohiddenFolderName)) {
+		if (Utils::ContainsStringIgnoreCase(filenameString, mohiddenFolderName)) {
 			return false;
 		}
 

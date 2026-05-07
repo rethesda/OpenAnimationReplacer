@@ -94,5 +94,105 @@ namespace UI
 		std::unique_ptr<Functions::FunctionSet> _functionSetCopy = nullptr;
 		[[nodiscard]] bool ConditionContainsPreset(Conditions::ICondition* a_condition, Conditions::ConditionPreset* a_conditionPreset = nullptr) const;
 		[[nodiscard]] bool ConditionSetContainsPreset(Conditions::ConditionSet* a_conditionSet, Conditions::ConditionPreset* a_conditionPreset = nullptr) const;
+
+		struct CommentState
+		{
+			enum class Type
+			{
+				kNone,
+				kCondition,
+				kFunction
+			};
+
+			bool bShouldOpen = false;
+			Type type = Type::kNone;
+			Conditions::ICondition* condition;
+			Conditions::ConditionSet* parentConditionSet;
+			Functions::IFunction* function;
+			Functions::FunctionSet* parentFunctionSet;
+			std::string buffer;
+
+			void Set(Conditions::ICondition* a_condition, Conditions::ConditionSet* a_parentConditionSet)
+			{
+				Clear();
+				bShouldOpen = true;
+				type = Type::kCondition;
+				condition = a_condition;
+				parentConditionSet = a_parentConditionSet;
+				buffer = a_condition->GetComment();
+			}
+
+			void Set(Functions::IFunction* a_function, Functions::FunctionSet* a_parentFunctionSet)
+			{
+				Clear();
+				bShouldOpen = true;
+				type = Type::kFunction;
+				function = a_function;
+				parentFunctionSet = a_parentFunctionSet;
+				buffer = a_function->GetComment();
+			}
+
+			bool Valid() const
+			{
+				if (type == Type::kCondition) {
+					return condition != nullptr && parentConditionSet != nullptr;
+				} else if (type == Type::kFunction) {
+					return function != nullptr && parentFunctionSet != nullptr;
+				}
+				return false;
+			}
+
+			void Save()
+			{
+				switch (type) {
+				case Type::kCondition:
+					if (condition && parentConditionSet) {
+						condition->SetComment(buffer.data());
+						parentConditionSet->SetDirty(true);
+					}
+					break;
+				case Type::kFunction:
+					if (function && parentFunctionSet) {
+						function->SetComment(buffer.data());
+						parentFunctionSet->SetDirty(true);
+					}
+					break;
+				}
+				Clear();
+			}
+
+			std::string GetCurrentComment() const
+			{
+				switch (type) {
+				case Type::kCondition:
+					if (condition) {
+						return condition->GetComment().c_str();
+					}
+					break;
+				case Type::kFunction:
+					if (function) {
+						return function->GetComment().c_str();
+					}
+				}
+				return std::string();
+			}
+
+			bool HasUnsavedChanges() const
+			{
+				return buffer != GetCurrentComment();
+			}
+
+			void Clear()
+			{
+				bShouldOpen = false;
+				type = Type::kNone;
+				condition = nullptr;
+				parentConditionSet = nullptr;
+				function = nullptr;
+				parentFunctionSet = nullptr;
+				buffer.clear();
+			}
+
+		} _commentState;
 	};
 }

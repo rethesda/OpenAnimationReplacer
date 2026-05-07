@@ -18,12 +18,12 @@ struct Settings
 	// General
 	static inline uint16_t uAnimationLimit = 0x7FFF;
 	static inline uint32_t uHavokHeapSize = 0x40000000;
-	static inline bool bAsyncParsing = true;
 	static inline bool bLoadDefaultBehaviorsInMainMenu = true;
+	static inline uint32_t uParsingWorkerCount = 4;
 
 	// Duplicate filtering
 	static inline bool bFilterOutDuplicateAnimations = true;
-	//static inline bool bCacheAnimationFileHashes = false;
+	static inline bool bVerifyDuplicateHashesByComparingFileBytes = false;
 
 	// UI
 	static inline bool bEnableUI = true;
@@ -81,7 +81,6 @@ struct Settings
 
 	constexpr static inline std::string_view iniPath = "Data/SKSE/Plugins/OpenAnimationReplacer.ini";
 	constexpr static inline std::string_view imguiIni = "Data/SKSE/Plugins/OpenAnimationReplacer_ImGui.ini";
-	constexpr static inline std::string_view animationFileHashCachePath = "Data/SKSE/Plugins/OpenAnimationReplacer_animFileHashCache.bin";
 
 	constexpr static inline std::string_view synchronizedClipSourcePrefix = "NPC";
 	constexpr static inline std::string_view synchronizedClipTargetPrefix = "2_";

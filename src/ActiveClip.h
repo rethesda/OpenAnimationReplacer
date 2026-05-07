@@ -128,6 +128,9 @@ public:
 	bool OnLoop(RE::hkbClipGenerator* a_clipGenerator);
 	[[nodiscard]] RE::hkbClipGenerator* GetLastBlendingClipGenerator() const;
 
+	[[nodiscard]] Variant* GetCurrentVariant() const { return _currentVariant; }
+	[[nodiscard]] std::string_view GetCurrentFilename() const;
+
 	bool IsInLoopSequence();
 
 	bool ReplacementHasOnTriggerFunctions() const { return _currentReplacementAnimation ? _currentReplacementAnimation->HasValidFunctionSet(Functions::FunctionSetType::kOnTrigger) : false; }

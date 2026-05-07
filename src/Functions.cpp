@@ -551,4 +551,70 @@ namespace Functions
 
 		return enumMap;
 	}
+
+	RE::BSString ModifyGraphVariableFunction::GetArgument() const
+	{
+		std::string graphVariableName = graphVariableComponent->GetArgument().c_str();
+
+		if (graphVariableName.empty()) {
+			return "";
+		}
+
+		float valueToAdd = valueToAddComponent->GetNumericValue(nullptr);
+		std::string op = valueToAdd < 0 ? "-" : "+";
+		valueToAdd = std::abs(valueToAdd);
+		return std::format("{} {} {}", graphVariableName, op, valueToAdd).data();
+	}
+
+	bool ModifyGraphVariableFunction::RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator*, void*, Trigger*) const
+	{
+		if (a_refr) {
+			switch (graphVariableComponent->GetGraphVariableType()) {
+			case Components::GraphVariableType::kFloat:
+				{
+					float currentValue;
+					if (a_refr->GetGraphVariableFloat(graphVariableComponent->GetGraphVariableName(), currentValue)) {
+						a_refr->SetGraphVariableFloat(graphVariableComponent->GetGraphVariableName(), currentValue + valueToAddComponent->GetNumericValue(a_refr));
+						return true;
+					}
+					return false;
+				}
+			case Components::GraphVariableType::kInt:
+				{
+					int32_t currentValue;
+					if (a_refr->GetGraphVariableInt(graphVariableComponent->GetGraphVariableName(), currentValue)) {
+						a_refr->SetGraphVariableInt(graphVariableComponent->GetGraphVariableName(), currentValue + static_cast<int32_t>(valueToAddComponent->GetNumericValue(a_refr)));
+						return true;
+					}
+					return false;
+				}
+			case Components::GraphVariableType::kBool:
+				{
+					bool currentValue;
+					if (a_refr->GetGraphVariableBool(graphVariableComponent->GetGraphVariableName(), currentValue)) {
+						a_refr->SetGraphVariableBool(graphVariableComponent->GetGraphVariableName(), std::clamp(currentValue + static_cast<bool>(valueToAddComponent->GetNumericValue(a_refr)), 0, 1));
+						return true;
+					}
+					return false;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool FILENAMEFunction::RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const
+	{
+		if (a_refr) {
+			if (auto activeClip = OpenAnimationReplacer::GetSingleton().GetActiveClip(a_clipGenerator)) {
+				std::string_view currentFilename = activeClip->GetCurrentFilename();
+				std::string desiredFilename = filenameComponent->GetTextValue().c_str();
+				if (currentFilename == desiredFilename) {
+					return multiFunctionComponent->Run(a_refr, a_clipGenerator, a_parentSubMod, a_trigger);
+				}
+			}
+		}
+
+		return false;
+	}
 }

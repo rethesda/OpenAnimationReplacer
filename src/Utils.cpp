@@ -108,6 +108,15 @@ namespace Utils
 		return std::string::npos;
 	}
 
+	std::string ToLower(std::string_view a_string)
+	{
+		std::string lowerString(a_string);
+		std::ranges::transform(lowerString, lowerString.begin(), [](const unsigned char c) {
+			return static_cast<char>(std::tolower(c));
+		});
+		return lowerString;
+	}
+
 	bool CheckPathLength(std::filesystem::path a_path)
 	{
 		auto absolutePath = a_path;
@@ -138,7 +147,7 @@ namespace Utils
 
 	bool IsDirectory(const std::filesystem::directory_entry& a_entry)
 	{
-		return IsDirectory(a_entry.path());
+		return a_entry.is_directory();
 	}
 
 	bool IsRegularFile(std::filesystem::path a_path)
@@ -155,7 +164,7 @@ namespace Utils
 
 	bool IsRegularFile(const std::filesystem::directory_entry& a_entry)
 	{
-		return IsRegularFile(a_entry.path());
+		return a_entry.is_regular_file();
 	}
 
 	std::string GetFormNameString(const RE::TESForm* a_form)

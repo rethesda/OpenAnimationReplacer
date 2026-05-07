@@ -9,8 +9,8 @@
 #include "Settings.h"
 #include "UI/UIMain.h"
 #include "UI/UIManager.h"
+#include "Utils.h"
 
-#include <future>
 #include <ranges>
 
 bool OpenAnimationReplacer::StateDataUpdate(float a_deltaTime)
@@ -508,6 +508,7 @@ void OpenAnimationReplacer::CreateReplacerMods()
 	Locker parseLocker(_parseLock);
 
 	auto startTime = std::chrono::high_resolution_clock::now();
+	Parsing::ResetTimingStats();
 
 	if (!AreFactoriesInitialized()) {
 		InitFactories();
@@ -524,15 +525,15 @@ void OpenAnimationReplacer::CreateReplacerMods()
 
 	auto endOfParsingTime = std::chrono::high_resolution_clock::now();
 
-	if (parseResults.modParseResultFutures.empty() && parseResults.legacyParseResultFutures.empty()) {
+	if (parseResults.modParseResults.empty() && parseResults.legacyParseResults.empty()) {
 		logger::info("No replacer mods found.");
+		Parsing::LogTimingStats();
 		return;
 	}
 
 	// add all parsed mods
 	logger::info("Adding parsed replacer mods...");
-	for (auto& future : parseResults.modParseResultFutures) {
-		auto modParseResult = future.get();
+	for (auto& modParseResult : parseResults.modParseResults) {
 		AddModParseResult(modParseResult);
 	}
 	logger::info("Added parsed replacer mods.");
@@ -541,8 +542,8 @@ void OpenAnimationReplacer::CreateReplacerMods()
 
 	// add all parsed legacy mods
 	logger::info("Adding parsed legacy replacer mods...");
-	for (auto& future : parseResults.legacyParseResultFutures) {
-		if (auto subModParseResult = future.get(); subModParseResult.bSuccess) {
+	for (auto& subModParseResult : parseResults.legacyParseResults) {
+		if (subModParseResult.bSuccess) {
 			auto replacerMod = GetOrCreateLegacyReplacerMod();
 			AddSubModParseResult(replacerMod, subModParseResult);
 		}
@@ -563,6 +564,7 @@ void OpenAnimationReplacer::CreateReplacerMods()
 	logger::info("  Adding legacy mods: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(endOfLegacyModsTime - endOfModsTime).count());
 	logger::info("  Checking for problems: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(endTime - endOfLegacyModsTime).count());
 	logger::info("  Total: {}ms", std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count());
+	Parsing::LogTimingStats();
 }
 
 void OpenAnimationReplacer::CreateReplacementAnimations([[maybe_unused]] const char* a_path, RE::hkbCharacterStringData* a_stringData, RE::BShkbHkxDB::ProjectDBData* a_projectDBData)
@@ -597,15 +599,16 @@ void OpenAnimationReplacer::CreateReplacementAnimations([[maybe_unused]] const c
 
 		// normalize the path to handle ".." in shared killmove paths etc.
 		const auto originalAnimationPath = (projectPath / originalAnimation.data()).lexically_normal();
+		const auto originalAnimationPathString = originalAnimationPath.string();
 
-		const auto& search = _animationPathToSubModsMap.find(originalAnimationPath);
+		const auto& search = _animationPathToSubModsMap.find(Utils::ToLower(originalAnimationPathString));
 		if (search != _animationPathToSubModsMap.end()) {
 			if (!projectData) {
 				projectData = GetOrAddReplacerProjectData(a_stringData, a_projectDBData);
 			}
 
 			for (const auto& subMod : search->second) {
-				subMod->AddReplacementAnimation(originalAnimationPath.string(), static_cast<uint16_t>(i), projectData, a_stringData);
+				subMod->AddReplacementAnimation(originalAnimationPathString, static_cast<uint16_t>(i), projectData, a_stringData);
 				subModsToUpdate.emplace(subMod);
 			}
 		}
@@ -644,8 +647,20 @@ void OpenAnimationReplacer::CacheAnimationPathSubMod(std::string_view a_path, Su
 {
 	WriteLocker locker(_animationPathToSubModsLock);
 
-	auto& entry = _animationPathToSubModsMap[a_path];
+	auto& entry = _animationPathToSubModsMap[Utils::ToLower(a_path)];
 	entry.emplace(a_subMod);
+}
+
+void OpenAnimationReplacer::CacheAnimationPathSubMods(const std::vector<std::string>& a_paths, SubMod* a_subMod)
+{
+	Parsing::ScopedTimer timer(Parsing::TimingBucket::kCacheAnimationPathSubMods);
+
+	WriteLocker locker(_animationPathToSubModsLock);
+
+	for (const auto& path : a_paths) {
+		auto& entry = _animationPathToSubModsMap[Utils::ToLower(path)];
+		entry.emplace(a_subMod);
+	}
 }
 
 ReplacerProjectData* OpenAnimationReplacer::GetReplacerProjectData(RE::hkbCharacterStringData* a_stringData) const
@@ -929,6 +944,8 @@ void OpenAnimationReplacer::InitFactories()
 	_conditionFactories.emplace("InventoryWeight", []() { return std::make_unique<InventoryWeightCondition>(); });
 	_conditionFactories.emplace("IsGhost", []() { return std::make_unique<IsGhostCondition>(); });
 	_conditionFactories.emplace("IsSwimming", []() { return std::make_unique<IsSwimmingCondition>(); });
+	_conditionFactories.emplace("IsStaggered", []() { return std::make_unique<IsStaggeredCondition>(); });
+	_conditionFactories.emplace("CastingSpell", []() { return std::make_unique<CastingSpellCondition>(); });
 
 	// Hidden factories - not visible for selection in the UI, used for mapping legacy names to new conditions etc
 	_hiddenConditionFactories.emplace("IsEquippedRight", []() { return std::make_unique<IsEquippedCondition>(false); });
@@ -972,6 +989,8 @@ void OpenAnimationReplacer::InitFactories()
 	_functionFactories.emplace("DispelSpell", []() { return std::make_unique<DispelSpellFunction>(); });
 	_functionFactories.emplace("SpawnParticle", []() { return std::make_unique<SpawnParticleFunction>(); });
 	_functionFactories.emplace("UnequipSlot", []() { return std::make_unique<UnequipSlotFunction>(); });
+	_functionFactories.emplace("ModifyGraphVariable", []() { return std::make_unique<ModifyGraphVariableFunction>(); });
+	_functionFactories.emplace("FILENAME", []() { return std::make_unique<FILENAMEFunction>(); });
 
 	for (auto& [name, factory] : _customFunctionFactories) {
 		_functionFactories.emplace(name, [&]() { return std::unique_ptr<IFunction>(factory()); });

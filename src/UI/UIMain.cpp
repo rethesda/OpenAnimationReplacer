@@ -79,6 +79,50 @@ namespace UI
 			}
 			ImGui::EndChild();
 
+			if (_commentState.bShouldOpen) {
+				ImGui::OpenPopup("Edit comment##popup");
+				_commentState.bShouldOpen = false;
+			}
+
+			if (_commentState.Valid()) {
+				ImGui::SetNextWindowSize(ImVec2(280.f, 0.f));
+				if (ImGui::BeginPopupModal("Edit comment##popup"), nullptr, ImGuiWindowFlags_NoDecoration) {
+					if (ImGui::IsWindowAppearing()) {
+						ImGui::SetKeyboardFocusHere();
+					}
+
+					float avail = ImGui::GetContentRegionAvail().x;
+					float buttonWidth = (avail - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+					bool bEdited = _commentState.HasUnsavedChanges();
+
+					ImGui::SetNextItemWidth(avail);
+
+					if (ImGui::InputTextWithHint("##comment", "Add comment...", &_commentState.buffer, ImGuiInputTextFlags_EnterReturnsTrue)) {
+						if (bEdited) {
+							_commentState.Save();
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0.f))) {
+						_commentState.Clear();
+						ImGui::CloseCurrentPopup();
+					}
+
+					ImGui::SameLine();
+
+					ImGui::BeginDisabled(!bEdited);
+					if (ImGui::Button("Save", ImVec2(buttonWidth, 0.f))) {
+						_commentState.Save();
+						ImGui::CloseCurrentPopup();
+					}
+					ImGui::EndDisabled();
+
+					ImGui::EndPopup();
+				}
+			}
+
 			const std::string animationLogButtonName = "Animation Log";
 			const float animationLogButtonWidth = (ImGui::CalcTextSize(animationLogButtonName.data()).x + style.FramePadding.x * 2 + style.ItemSpacing.x);
 
@@ -305,6 +349,7 @@ namespace UI
 	void UIMain::OnClose()
 	{
 		UIManager::GetSingleton().RemoveInputConsumer();
+		_commentState.Clear();
 	}
 
 	void UIMain::DrawSettings(const ImVec2& a_pos)
@@ -367,12 +412,6 @@ namespace UI
 			ImGui::SameLine();
 			UICommon::HelpMarker("Set the havok heap size. Takes effect after restarting the game. (Vanilla value is 0x20000000)");
 
-			if (ImGui::Checkbox("Async parsing", &Settings::bAsyncParsing)) {
-				Settings::WriteSettings();
-			}
-			ImGui::SameLine();
-			UICommon::HelpMarker("Enable to asynchronously parse all the replacer mods on load. This dramatically speeds up the process. No real reason to disable this setting.");
-
 			if (Settings::bDisablePreloading) {
 				ImGui::BeginDisabled();
 				bool bDummy = false;
@@ -385,6 +424,14 @@ namespace UI
 			}
 			ImGui::SameLine();
 			UICommon::HelpMarker("Enable to start loading default male/female behaviors in the main menu. Ignored with animation preloading disabled as there's no benefit in doing so in that case.");
+
+			constexpr uint32_t workerCountMin = 1;
+			constexpr uint32_t workerCountMax = 32;
+			if (ImGui::SliderScalar("Parsing worker count", ImGuiDataType_U32, &Settings::uParsingWorkerCount, &workerCountMin, &workerCountMax, "%d", ImGuiSliderFlags_AlwaysClamp)) {
+				Settings::WriteSettings();
+			}
+			ImGui::SameLine();
+			UICommon::HelpMarker("Number of worker threads used while parsing animation replacer mods on launch. Higher values can be slower due to storage contention. Takes effect after restarting the game.");
 
 			ImGui::Spacing();
 			ImGui::Separator();
@@ -399,19 +446,6 @@ namespace UI
 			}
 			ImGui::SameLine();
 			UICommon::HelpMarker("Enable to check for duplicates before adding an animation. Only one copy of an animation binding will be used in multiple replacer animations. This might massively cut down on the number of loaded animations as replacer mods tend to use multiple copies of the same animation with different condition.");
-
-			/*ImGui::BeginDisabled(!Settings::bFilterOutDuplicateAnimations);
-            if (ImGui::Checkbox("Cache animation file hashes", &Settings::bCacheAnimationFileHashes)) {
-                Settings::WriteSettings();
-            }
-            ImGui::SameLine();
-            UICommon::HelpMarker("Enable to save a cache of animation file hashes, so the hashes don't have to be recalculated on every game launch. It's saved to a .bin file next to the .dll. This should speed up the loading process a little bit.");
-            ImGui::SameLine();
-            if (ImGui::Button("Clear cache")) {
-                AnimationFileHashCache::GetSingleton().DeleteCache();
-            }
-            UICommon::AddTooltip("Delete the animation file hash cache. This will cause the hashes to be recalculated on the next game launch.");
-            ImGui::EndDisabled();*/
 
 			ImGui::Spacing();
 			ImGui::Separator();
@@ -1811,8 +1845,10 @@ namespace UI
 					break;
 				}
 
+				ImGuiTreeNodeFlags_ treeNodeFlags = a_subMod->GetFunctionSet(a_functionSetType) ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None;
+
 				functionsTreeNodeLabel += std::to_string(reinterpret_cast<std::uintptr_t>(a_replacerMod)) + std::to_string(reinterpret_cast<std::uintptr_t>(a_subMod)) + "functionsNode";
-				bool bIsExpanded = ImGui::CollapsingHeader(functionsTreeNodeLabel.data());
+				bool bIsExpanded = ImGui::CollapsingHeader(functionsTreeNodeLabel.data(), treeNodeFlags);
 				ImGui::SameLine();
 				UICommon::HelpMarker(helpMarkerText.data());
 				if (bIsExpanded) {
@@ -1833,9 +1869,11 @@ namespace UI
 				}
 			};
 
+			ImGuiTreeNodeFlags_ treeNodeFlags = a_subMod->HasAnyFunctionSet() ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None;
+
 			if (_editMode != EditMode::kNone || a_subMod->HasAnyFunctionSet()) {
 				std::string allFunctionsTreeNodeLabel = "Functions##" + std::to_string(reinterpret_cast<std::uintptr_t>(a_replacerMod)) + std::to_string(reinterpret_cast<std::uintptr_t>(a_subMod)) + "functionsNode";
-				if (ImGui::CollapsingHeader(allFunctionsTreeNodeLabel.data(), ImGuiTreeNodeFlags_DefaultOpen)) {
+				if (ImGui::CollapsingHeader(allFunctionsTreeNodeLabel.data(), treeNodeFlags)) {
 					ImGui::Indent();
 					if (_editMode != EditMode::kNone || a_subMod->HasFunctionSet(Functions::FunctionSetType::kOnActivate)) {
 						drawFunctionSet(Functions::FunctionSetType::kOnActivate);
@@ -2240,7 +2278,7 @@ namespace UI
 					a_functionSet = a_parentSubMod->CreateOrGetFunctionSet(a_functionSetType);
 				}
 				if (_lastAddNewFunctionName.empty()) {
-					auto defaultFunction = Functions::CreateFunction("AddSpell"sv);
+					auto defaultFunction = Functions::CreateFunction("PlaySound"sv);
 					a_functionSet->Add(defaultFunction, true);
 					bSetDirty = true;
 				} else {
@@ -2402,6 +2440,18 @@ namespace UI
 						ImGui::EndTooltip();
 					}
 
+					// comment button
+					if (a_condition->GetConditionAPIVersion() >= Conditions::ConditionAPIVersion::V4) {
+						ImGui::Spacing();
+						
+						if (ImGui::Button("Edit comment", ImVec2(xButtonSize, 0))) {
+							_commentState.Set(a_condition.get(), a_conditionSet);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					ImGui::Spacing();
+
 					// delete button
 					UICommon::ButtonWithConfirmationModal(
 						"Delete condition"sv, "Are you sure you want to remove the condition?\nThis operation cannot be undone!\n\n"sv, [&]() {
@@ -2504,6 +2554,16 @@ namespace UI
 
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
 
+			// Condition comment
+			ImGui::SameLine();
+			if (a_condition->GetConditionAPIVersion() >= Conditions::ConditionAPIVersion::V4) {
+				if (!a_condition->GetComment().empty()) {
+					std::string comment = a_condition->GetComment().c_str();
+					float maxCommentWidth = (ImGui::GetWindowContentRegionMax().x * _firstColumnWidthPercent) - ImGui::GetCursorPos().x;
+					UICommon::TextUnformattedEllipsisColored(UICommon::COMMENT_COLOR, std::format("{}", comment).data(), nullptr, maxCommentWidth);
+				}
+			}
+
 			// Right column, argument text
 			UICommon::SecondColumn(_firstColumnWidthPercent);
 			const auto argument = a_condition->GetArgument();
@@ -2572,7 +2632,7 @@ namespace UI
 
 					// Essential state
 					{
-						if (a_condition->GetConditionType() == Conditions::ConditionType::kCustom && a_condition->GetConditionAPIVersion() >= Conditions::ConditionAPIVersion::kNew) {
+						if (a_condition->GetConditionType() == Conditions::ConditionType::kCustom && a_condition->GetConditionAPIVersion() >= Conditions::ConditionAPIVersion::V3) {
 							static std::map<Conditions::EssentialState, std::string_view> enumMap = {
 								{ Conditions::EssentialState::kEssential, "Essential" },
 								{ Conditions::EssentialState::kNonEssential_True, "Non-essential - Return true" },
@@ -2787,6 +2847,18 @@ namespace UI
 						ImGui::EndTooltip();
 					}
 
+					// comment button
+					if (a_function->GetFunctionAPIVersion() >= Functions::FunctionAPIVersion::V2) {
+						ImGui::Spacing();
+
+						if (ImGui::Button("Edit comment", ImVec2(xButtonSize, 0))) {
+							_commentState.Set(a_function.get(), a_functionSet);
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					ImGui::Spacing();
+
 					// delete button
 					UICommon::ButtonWithConfirmationModal(
 						"Delete function"sv, "Are you sure you want to remove the function?\nThis operation cannot be undone!\n\n"sv, [&]() {
@@ -2886,6 +2958,16 @@ namespace UI
 			}
 
 			ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+
+			// Function comment
+			ImGui::SameLine();
+			if (a_function->GetFunctionAPIVersion() >= Functions::FunctionAPIVersion::V2) {
+				if (!a_function->GetComment().empty()) {
+					std::string comment = a_function->GetComment().c_str();
+					float maxCommentWidth = (ImGui::GetWindowContentRegionMax().x * _firstColumnWidthPercent) - ImGui::GetCursorPos().x;
+					UICommon::TextUnformattedEllipsisColored(UICommon::COMMENT_COLOR, std::format("{}", comment).data(), nullptr, maxCommentWidth);
+				}
+			}
 
 			// Right column, argument text
 			UICommon::SecondColumn(_firstColumnWidthPercent);

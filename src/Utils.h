@@ -31,6 +31,7 @@ namespace Utils
 	[[nodiscard]] bool CompareStringsIgnoreCase(std::string_view a_lhs, std::string_view a_rhs);
 	[[nodiscard]] bool ContainsStringIgnoreCase(std::string_view a_string, std::string_view a_substring);
 	[[nodiscard]] size_t FindStringIgnoreCase(std::string_view a_string, std::string_view a_substring);
+	[[nodiscard]] std::string ToLower(std::string_view a_string);
 
 	[[nodiscard]] bool CheckPathLength(std::filesystem::path a_path);
 	[[nodiscard]] bool Exists(std::filesystem::path a_path);

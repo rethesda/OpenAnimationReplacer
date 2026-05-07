@@ -103,12 +103,12 @@ void Settings::ReadSettings()
 			// General
 			ReadUInt16Setting(ini, "General", "uAnimationLimit", uAnimationLimit);
 			ReadUInt32Setting(ini, "General", "uHavokHeapSize", uHavokHeapSize);
-			ReadBoolSetting(ini, "General", "bAsyncParsing", bAsyncParsing);
 			ReadBoolSetting(ini, "General", "bLoadDefaultBehaviorsInMainMenu", bLoadDefaultBehaviorsInMainMenu);
+			ReadUInt32Setting(ini, "General", "uParsingWorkerCount", uParsingWorkerCount);
 
 			// Duplicate filtering
 			ReadBoolSetting(ini, "Filtering", "bFilterOutDuplicateAnimations", bFilterOutDuplicateAnimations);
-			//ReadBoolSetting(ini, "Filtering", "bCacheAnimationFileHashes", bCacheAnimationFileHashes);
+			ReadBoolSetting(ini, "Filtering", "bVerifyDuplicateHashesByComparingFileBytes", bVerifyDuplicateHashesByComparingFileBytes);
 
 			// UI
 			ReadBoolSetting(ini, "UI", "bEnableUI", bEnableUI);
@@ -178,12 +178,12 @@ void Settings::WriteSettings()
 	// General
 	ini.SetLongValue("General", "uAnimationLimit", uAnimationLimit);
 	ini.SetLongValue("General", "uHavokHeapSize", uHavokHeapSize);
-	ini.SetBoolValue("General", "bAsyncParsing", bAsyncParsing);
 	ini.SetBoolValue("General", "bLoadDefaultBehaviorsInMainMenu", bLoadDefaultBehaviorsInMainMenu);
+	ini.SetLongValue("General", "uParsingWorkerCount", uParsingWorkerCount);
 
 	// Duplicate filtering
 	ini.SetBoolValue("Filtering", "bFilterOutDuplicateAnimations", bFilterOutDuplicateAnimations);
-	//ini.SetBoolValue("Filtering", "bCacheAnimationFileHashes", bCacheAnimationFileHashes);
+	ini.SetBoolValue("Filtering", "bVerifyDuplicateHashesByComparingFileBytes", bVerifyDuplicateHashesByComparingFileBytes);
 
 	// UI
 	ini.SetBoolValue("UI", "bEnableUI", bEnableUI);

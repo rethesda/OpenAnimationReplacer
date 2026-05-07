@@ -336,4 +336,49 @@ namespace Functions
 
 		static std::map<int32_t, std::string_view> GetEnumMap();
 	};
+
+	class ModifyGraphVariableFunction : public FunctionBase
+	{
+	public:
+		ModifyGraphVariableFunction()
+		{
+			graphVariableComponent = AddComponent<NumericFunctionComponent>("Graph variable");
+			graphVariableComponent->SetForcedType(Components::NumericValue::Type::kGraphVariable);
+			valueToAddComponent = AddComponent<NumericFunctionComponent>("Value to add");
+		}
+
+		[[nodiscard]] RE::BSString GetArgument() const override;
+
+		[[nodiscard]] RE::BSString GetName() const override { return "ModifyGraphVariable"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Modifies a graph variable."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 1, 0 }; }
+
+		NumericFunctionComponent* graphVariableComponent;
+		NumericFunctionComponent* valueToAddComponent;
+
+	protected:
+		bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const override;
+	};
+
+	class FILENAMEFunction : public FunctionBase
+	{
+	public:
+		FILENAMEFunction()
+		{
+			multiFunctionComponent = AddComponent<MultiFunctionComponent>("Functions");
+			filenameComponent = AddComponent<TextFunctionComponent>("Filename");
+		}
+
+		[[nodiscard]] RE::BSString GetArgument() const override { return multiFunctionComponent->GetArgument(); }
+
+		[[nodiscard]] RE::BSString GetName() const override { return "FILENAME"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Runs functions from the contained function set only if the current replacement animation matches the specified filename."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 1, 0 }; }
+
+		MultiFunctionComponent* multiFunctionComponent;
+		TextFunctionComponent* filenameComponent;
+
+	protected:
+		bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const override;
+	};
 }

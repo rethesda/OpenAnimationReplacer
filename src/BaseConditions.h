@@ -43,7 +43,7 @@ namespace Conditions
 		[[nodiscard]] IConditionComponent* GetComponent(uint32_t a_index) const override;
 		IConditionComponent* AddComponent(ConditionComponentFactory a_factory, const char* a_name, const char* a_description = "") override;
 
-		[[nodiscard]] ConditionAPIVersion GetConditionAPIVersion() const override { return ConditionAPIVersion::kNew; }
+		[[nodiscard]] ConditionAPIVersion GetConditionAPIVersion() const override { return ConditionAPIVersion::Latest; }
 		[[nodiscard]] ICondition* GetWrappedCondition() const override { return nullptr; }
 
 		[[nodiscard]] ConditionType GetConditionTypeImpl() const override { return ConditionType::kNormal; }
@@ -70,6 +70,9 @@ namespace Conditions
 			return result;
 		}
 
+		[[nodiscard]] RE::BSString GetComment() const override { return _comment.data(); }
+		void SetComment(const char* a_comment) override { _comment = a_comment; }
+
 	protected:
 		ConditionBase() = default;
 
@@ -80,6 +83,8 @@ namespace Conditions
 		EssentialState _essentialState = EssentialState::kEssential;
 
 		std::vector<std::unique_ptr<IConditionComponent>> _components;
+
+		std::string _comment;
 	};
 
 	class ConditionSet : public Set<ICondition, ConditionSet>

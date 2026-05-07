@@ -1,13 +1,42 @@
 #include "ReplacerMods.h"
 
+#include <cstring>
+#include <mmio/mmio.hpp>
 #include <ranges>
 
 #include "DetectedProblems.h"
 #include "Offsets.h"
 #include "OpenAnimationReplacer.h"
 #include "Settings.h"
+#include "Utils.h"
 
 #include <unordered_set>
+
+namespace
+{
+	bool AreFilesIdentical(std::string_view a_lhs, std::string_view a_rhs)
+	{
+		if (a_lhs == a_rhs) {
+			return true;
+		}
+
+		mmio::mapped_file_source lhsFile;
+		mmio::mapped_file_source rhsFile;
+		if (!lhsFile.open(a_lhs) || !rhsFile.open(a_rhs)) {
+			return false;
+		}
+
+		if (lhsFile.size() != rhsFile.size()) {
+			return false;
+		}
+
+		if (lhsFile.size() == 0) {
+			return true;
+		}
+
+		return std::memcmp(lhsFile.data(), rhsFile.data(), lhsFile.size()) == 0;
+	}
+}
 
 bool SubMod::StateDataUpdate(float a_deltaTime)
 {
@@ -33,7 +62,12 @@ bool SubMod::AddReplacementAnimation(std::string_view a_animPath, uint16_t a_ori
 {
 	bool bAdded = false;
 
-	if (const auto search = _replacementAnimationFiles.find(a_animPath.data()); search != _replacementAnimationFiles.end()) {
+	const std::string_view projectName = a_stringData->name.data();
+	if (!_requiredProjectName.empty() && !Utils::CompareStringsIgnoreCase(_requiredProjectName, projectName)) {
+		return bAdded;
+	}
+
+	if (const auto search = _replacementAnimationFiles.find(Utils::ToLower(a_animPath)); search != _replacementAnimationFiles.end()) {
 		std::unique_ptr<ReplacementAnimation> newReplacementAnimation = nullptr;
 
 		auto& animFile = search->second;
@@ -67,7 +101,7 @@ bool SubMod::AddReplacementAnimation(std::string_view a_animPath, uint16_t a_ori
 
 			// load anim data
 			const auto animDataSearch = std::ranges::find_if(_replacementAnimDatas, [&](const ReplacementAnimData& a_replacementAnimData) {
-				return a_replacementAnimData.projectName == a_stringData->name.data() && a_replacementAnimData.path == animFile.fullPath;
+				return a_replacementAnimData.projectName == projectName && a_replacementAnimData.path == animFile.fullPath;
 			});
 
 			if (animDataSearch != _replacementAnimDatas.end()) {
@@ -84,16 +118,25 @@ bool SubMod::AddReplacementAnimation(std::string_view a_animPath, uint16_t a_ori
 
 void SubMod::SetAnimationFiles(const std::vector<ReplacementAnimationFile>& a_animationFiles)
 {
+	Parsing::ScopedTimer timer(Parsing::TimingBucket::kSetAnimationFiles);
+
 	auto& openAnimationReplacer = OpenAnimationReplacer::GetSingleton();
 
-	WriteLocker locker(_dataLock);
+	std::vector<std::string> originalPaths;
+	originalPaths.reserve(a_animationFiles.size());
 
-	for (const auto& animFile : a_animationFiles) {
-		auto originalPath = animFile.GetOriginalPath();
+	{
+		WriteLocker locker(_dataLock);
 
-		_replacementAnimationFiles.emplace(originalPath, animFile);
-		openAnimationReplacer.CacheAnimationPathSubMod(originalPath, this);
+		for (const auto& animFile : a_animationFiles) {
+			auto originalPath = animFile.GetOriginalPath();
+
+			_replacementAnimationFiles.emplace(Utils::ToLower(originalPath), animFile);
+			originalPaths.emplace_back(std::move(originalPath));
+		}
 	}
+
+	openAnimationReplacer.CacheAnimationPathSubMods(originalPaths, this);
 }
 
 void SubMod::LoadParseResult(const Parsing::SubModParseResult& a_parseResult)
@@ -887,7 +930,7 @@ void SubMod::ForEachReplacementAnimationFile(const std::function<void(const Repl
 	std::map<std::string, const ReplacementAnimationFile*> sortedReplacementAnimationFiles;
 
 	for (const auto& entry : _replacementAnimationFiles) {
-		sortedReplacementAnimationFiles.emplace(entry.first.string(), &entry.second);
+		sortedReplacementAnimationFiles.emplace(entry.second.GetOriginalPath(), &entry.second);
 	}
 
 	for (const auto& entry : sortedReplacementAnimationFiles | std::views::values) {
@@ -1441,8 +1484,17 @@ uint16_t ReplacerProjectData::TryAddAnimationToAnimationBundleNames(std::string_
 		hash = a_hash;
 
 		if (const auto search = _fileHashToIndexMap.find(*hash); search != _fileHashToIndexMap.end()) {
-			++_filteredDuplicates;
-			return search->second;
+			for (const auto& candidate : search->second) {
+				bool bDuplicate = true;
+				if (Settings::bVerifyDuplicateHashesByComparingFileBytes) {
+					bDuplicate = AreFilesIdentical(a_path, candidate.path);
+				}
+
+				if (bDuplicate) {
+					++_filteredDuplicates;
+					return candidate.index;
+				}
+			}
 		}
 	}
 
@@ -1465,7 +1517,7 @@ uint16_t ReplacerProjectData::TryAddAnimationToAnimationBundleNames(std::string_
 	stringData->animationNames.push_back(a_path.data());
 
 	if (Settings::bFilterOutDuplicateAnimations && hash) {
-		_fileHashToIndexMap[*hash] = newIndex;
+		_fileHashToIndexMap[*hash].emplace_back(a_path, newIndex);
 	}
 
 	return newIndex;

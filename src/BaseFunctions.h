@@ -70,6 +70,9 @@ namespace Functions
 			return result;
 		}
 
+		[[nodiscard]] RE::BSString GetComment() const override { return _comment.data(); }
+		void SetComment(const char* a_comment) override { _comment = a_comment; }
+
 	protected:
 		FunctionBase() = default;
 
@@ -82,6 +85,8 @@ namespace Functions
 
 		mutable SharedLock _triggersLock;
 		std::set<Trigger> _triggers;
+
+		std::string _comment;
 	};
 
 	enum class FunctionSetType : uint8_t

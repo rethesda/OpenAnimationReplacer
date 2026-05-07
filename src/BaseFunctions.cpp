@@ -22,6 +22,11 @@ namespace Functions
 			_essentialState = static_cast<EssentialState>(essentialIt->value.GetInt());
 		}
 
+		// comment
+		if (const auto commentIt = object.FindMember("comment"); commentIt != object.MemberEnd() && commentIt->value.IsString()) {
+			_comment = commentIt->value.GetString();
+		}
+
 		for (const auto& component : _components) {
 			component->InitializeComponent(a_value);
 		}
@@ -78,6 +83,11 @@ namespace Functions
 		// essential
 		if (_essentialState != EssentialState::kEssential) {
 			value.AddMember("essential", static_cast<uint8_t>(_essentialState), allocator);
+		}
+
+		// comment
+		if (!_comment.empty()) {
+			value.AddMember("comment", rapidjson::Value(_comment.data(), static_cast<rapidjson::SizeType>(_comment.length()), allocator), allocator);
 		}
 
 		// components

@@ -78,6 +78,7 @@ public:
 	void CreateReplacementAnimations(const char* a_path, RE::hkbCharacterStringData* a_stringData, RE::BShkbHkxDB::ProjectDBData* a_projectDBData);
 
 	void CacheAnimationPathSubMod(std::string_view a_path, SubMod* a_subMod);
+	void CacheAnimationPathSubMods(const std::vector<std::string>& a_paths, SubMod* a_subMod);
 
 	[[nodiscard]] ReplacerProjectData* GetReplacerProjectData(RE::hkbCharacterStringData* a_stringData) const;
 	[[nodiscard]] ReplacerProjectData* GetOrAddReplacerProjectData(RE::hkbCharacterStringData* a_stringData, RE::BShkbHkxDB::ProjectDBData* a_projectDBData);
@@ -170,7 +171,7 @@ protected:
 	std::unique_ptr<ReplacerMod> _legacyReplacerMod = nullptr;
 
 	mutable SharedLock _animationPathToSubModsLock;
-	std::unordered_map<std::filesystem::path, std::unordered_set<SubMod*>, CaseInsensitivePathHash, CaseInsensitivePathEqual> _animationPathToSubModsMap;
+	std::unordered_map<std::string, std::unordered_set<SubMod*>> _animationPathToSubModsMap;
 
 	mutable SharedLock _replacerModNameLock;
 	std::unordered_map<std::string, ReplacerMod*> _replacerModNameMap;

@@ -4,7 +4,6 @@
   "dependencies": [
     "boost-container-hash",
     "boost-stl-interfaces",
-    "cryptopp",
     "directxtk",
     "effolkronium-random",
     "fmt",
@@ -19,7 +18,8 @@
     "rsm-mmio",
     "simpleini",
     "spdlog",
-    "xbyak"
+    "xbyak",
+    "xxhash"
   ],
   "overrides": [
     {

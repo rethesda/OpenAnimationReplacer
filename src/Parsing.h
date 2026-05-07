@@ -5,7 +5,7 @@
 #include "ReplacementAnimation.h"
 #include "Settings.h"
 
-#include <future>
+#include <chrono>
 
 struct ReplacementAnimData
 {
@@ -62,6 +62,65 @@ struct ReplacementAnimData
 
 namespace Parsing
 {
+	inline constexpr bool bEnableParseTiming = false;
+
+	enum class TimingBucket : uint8_t
+	{
+		kModJson,
+		kSubModJson,
+		kConditionsTxt,
+		kAnimationDirectoryScan,
+		kAnimationFileHash,
+		kSetAnimationFiles,
+		kCacheAnimationPathSubMods,
+		kTotal
+	};
+
+	enum class TimingCounter : uint8_t
+	{
+		kAnimationHashCalculated,
+		kAnimationHashCacheHit,
+		kAnimationHashFailed,
+		kDirectoryEntriesSeen,
+		kDirectoryDirectoriesSeen,
+		kDirectoryFilesSeen,
+		kDirectoryHkxFilesFound,
+		kDirectoryInvalidPaths,
+		kDirectoryHiddenRecursionSkips,
+		kTotal
+	};
+
+	void ResetTimingStats();
+	void LogTimingStats();
+	void AddTiming(TimingBucket a_bucket, std::chrono::nanoseconds a_duration);
+	void AddTimingCounter(TimingCounter a_counter);
+
+	class ScopedTimer
+	{
+	public:
+		explicit ScopedTimer(TimingBucket a_bucket) :
+			_bucket(a_bucket)
+		{
+			if constexpr (bEnableParseTiming) {
+				_startTime = std::chrono::steady_clock::now();
+			}
+		}
+
+		ScopedTimer(const ScopedTimer&) = delete;
+		ScopedTimer& operator=(const ScopedTimer&) = delete;
+
+		~ScopedTimer()
+		{
+			if constexpr (bEnableParseTiming) {
+				AddTiming(_bucket, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - _startTime));
+			}
+		}
+
+	private:
+		TimingBucket _bucket;
+		std::chrono::steady_clock::time_point _startTime;
+	};
+
 	enum class ConfigSource : uint8_t
 	{
 		kAuthor = 0,
@@ -149,11 +208,8 @@ namespace Parsing
 
 	struct ParseResults
 	{
-		//ExclusiveLock modParseResultsLock;
-		std::vector<std::future<ModParseResult>> modParseResultFutures;
-
-		//ExclusiveLock legacyParseResultsLock;
-		std::vector<std::future<SubModParseResult>> legacyParseResultFutures;
+		std::vector<ModParseResult> modParseResults;
+		std::vector<SubModParseResult> legacyParseResults;
 	};
 
 	[[nodiscard]] std::unique_ptr<Conditions::ConditionSet> ParseConditionsTxt(const std::filesystem::path& a_txtPath);
@@ -177,5 +233,5 @@ namespace Parsing
 	[[nodiscard]] std::optional<ReplacementAnimationFile> ParseReplacementAnimationVariants(std::string_view a_fullVariantsPath);
 	[[nodiscard]] std::vector<ReplacementAnimationFile> ParseAnimationsInDirectory(const std::filesystem::directory_entry& a_directory, bool a_bIsLegacy = false);
 
-	[[nodiscard]] bool IsPathValid(std::filesystem::path a_path);
+	[[nodiscard]] bool IsPathValid(const std::filesystem::path& a_path);
 }

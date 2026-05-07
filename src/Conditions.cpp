@@ -34,6 +34,12 @@ namespace Conditions
 		if (a_conditionName == "IsEquippedShout"sv) {
 			return "IsEquippedPower"sv;
 		}
+
+		return a_conditionName;
+	}
+
+	std::string_view CorrectConditionName(std::string_view a_conditionName)
+	{
 		if (a_conditionName == "CurrentPackageProcedureType"sv) {
 			return "CurrentPackageType"sv;
 		}
@@ -139,7 +145,7 @@ namespace Conditions
 				}
 			}
 
-			if (auto condition = OpenAnimationReplacer::GetSingleton().CreateCondition(CorrectLegacyConditionName(conditionName))) {
+			if (auto condition = OpenAnimationReplacer::GetSingleton().CreateCondition(CorrectConditionName(conditionName))) {
 				if (condition->IsDeprecated()) {
 					return ConvertDeprecatedCondition(condition, conditionName, a_value);
 				}
@@ -4753,5 +4759,73 @@ namespace Conditions
 		}
 
 		return false;
+	}
+
+	bool IsStaggeredCondition::EvaluateImpl(RE::TESObjectREFR* a_refr, [[maybe_unused]] RE::hkbClipGenerator* a_clipGenerator, [[maybe_unused]] void* a_parentSubMod) const
+	{
+		if (a_refr) {
+			if (const auto actor = a_refr->As<RE::Actor>()) {
+				if (const auto actorState = actor->AsActorState()) {
+					return actorState->actorState2.staggered;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	void CastingSpellCondition::PostInitialize()
+	{
+		ConditionBase::PostInitialize();
+		castingSourceComponent->value.getEnumMap = &CastingSpellCondition::GetEnumMap;
+	}
+
+	RE::BSString CastingSpellCondition::GetArgument() const
+	{
+		const auto castingSource = static_cast<int32_t>(castingSourceComponent->GetNumericValue(nullptr));
+
+		static auto map = GetEnumMap();
+		if (const auto it = map.find(castingSource); it != map.end()) {
+			return it->second;
+		}
+
+		return "(Invalid)"sv;
+	}
+
+	bool CastingSpellCondition::EvaluateImpl(RE::TESObjectREFR* a_refr, [[maybe_unused]] RE::hkbClipGenerator* a_clipGenerator, [[maybe_unused]] void* a_parentSubMod) const
+	{
+		if (a_refr) {
+			if (const auto actor = a_refr->As<RE::Actor>()) {
+				const int32_t value = static_cast<int32_t>(castingSourceComponent->GetNumericValue(a_refr));
+				if (value == 2) {
+					if (const auto magicCaster = actor->GetMagicCaster(RE::MagicSystem::CastingSource::kLeftHand)) {
+						return magicCaster->GetIsDualCasting();
+					}
+				}
+				
+				const auto castingSource = static_cast<RE::MagicSystem::CastingSource>(value);
+				if (castingSource < RE::MagicSystem::CastingSource::kLeftHand || castingSource > RE::MagicSystem::CastingSource::kRightHand) {
+					return false;
+				}
+
+				if (const auto magicCaster = actor->GetMagicCaster(castingSource)) {
+					if (magicCaster->GetIsDualCasting()) {
+						return false;
+					}
+					return (magicCaster->state > RE::MagicCaster::State::kNone) && (magicCaster->state < RE::MagicCaster::State::kUnk07);
+				}
+			}
+		}
+		
+		return false;
+	}
+
+	std::map<int32_t, std::string_view> CastingSpellCondition::GetEnumMap()
+	{
+		std::map<int32_t, std::string_view> enumMap;
+		enumMap[0] = "Left hand"sv;
+		enumMap[1] = "Right hand"sv;
+		enumMap[2] = "Dual"sv;
+		return enumMap;
 	}
 }
