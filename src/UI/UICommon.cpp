@@ -61,7 +61,7 @@ namespace UI::UICommon
 			} else {
 				ImGui::TextUnformatted(a_text, a_textEnd);
 			}
-			
+
 			return false;
 		}
 

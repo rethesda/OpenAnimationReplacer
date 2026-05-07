@@ -543,7 +543,7 @@ std::string_view ActiveClip::GetCurrentFilename() const
 	if (auto variant = GetCurrentVariant()) {
 		return variant->GetFilename();
 	}
-	
+
 	if (auto replacementAnim = GetReplacementAnimation()) {
 		return replacementAnim->GetFilename();
 	}

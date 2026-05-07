@@ -2443,7 +2443,7 @@ namespace UI
 					// comment button
 					if (a_condition->GetConditionAPIVersion() >= Conditions::ConditionAPIVersion::V4) {
 						ImGui::Spacing();
-						
+
 						if (ImGui::Button("Edit comment", ImVec2(xButtonSize, 0))) {
 							_commentState.Set(a_condition.get(), a_conditionSet);
 							ImGui::CloseCurrentPopup();

@@ -102,7 +102,7 @@ namespace Conditions
 
 		// comment
 		if (!_comment.empty()) {
-			value.AddMember("comment", rapidjson::Value(_comment.data(), static_cast<rapidjson::SizeType>(_comment.length()), allocator), allocator);			
+			value.AddMember("comment", rapidjson::Value(_comment.data(), static_cast<rapidjson::SizeType>(_comment.length()), allocator), allocator);
 		}
 
 		// components

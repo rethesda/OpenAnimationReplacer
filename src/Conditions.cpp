@@ -4802,7 +4802,7 @@ namespace Conditions
 						return magicCaster->GetIsDualCasting();
 					}
 				}
-				
+
 				const auto castingSource = static_cast<RE::MagicSystem::CastingSource>(value);
 				if (castingSource < RE::MagicSystem::CastingSource::kLeftHand || castingSource > RE::MagicSystem::CastingSource::kRightHand) {
 					return false;
@@ -4816,7 +4816,7 @@ namespace Conditions
 				}
 			}
 		}
-		
+
 		return false;
 	}
 
