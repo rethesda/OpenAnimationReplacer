@@ -5,8 +5,8 @@
 #include "ReplacementAnimation.h"
 #include "Settings.h"
 
-#include <chrono>
 #include <atomic>
+#include <chrono>
 #include <future>
 #include <shared_mutex>
 
