@@ -6,6 +6,9 @@
 #include "Settings.h"
 
 #include <chrono>
+#include <atomic>
+#include <future>
+#include <shared_mutex>
 
 struct ReplacementAnimData
 {
@@ -208,8 +211,8 @@ namespace Parsing
 
 	struct ParseResults
 	{
-		std::vector<ModParseResult> modParseResults;
-		std::vector<SubModParseResult> legacyParseResults;
+		std::vector<std::future<ModParseResult>> modParseResultFutures;
+		std::vector<std::future<SubModParseResult>> legacyParseResultFutures;
 	};
 
 	[[nodiscard]] std::unique_ptr<Conditions::ConditionSet> ParseConditionsTxt(const std::filesystem::path& a_txtPath);
@@ -224,14 +227,82 @@ namespace Parsing
 
 	[[nodiscard]] uint16_t GetOriginalAnimationBindingIndex(RE::hkbCharacterStringData* a_stringData, std::string_view a_animationName);
 
+	struct CachedDirectoryEntry
+	{
+		std::filesystem::path path;
+		bool isDirectory = false;
+	};
+
+	struct CachedAnimationFile
+	{
+		std::filesystem::path path;
+		bool isVariantsDirectory = false;
+		std::vector<std::filesystem::path> variantPaths;
+	};
+
+	struct CachedSubModDirectory
+	{
+		std::filesystem::path path;
+		std::vector<CachedAnimationFile> animationFiles;
+		std::vector<CachedSubModDirectory> subdirectories;
+	};
+
+	struct CachedModDirectory
+	{
+		std::filesystem::path path;
+		std::vector<CachedDirectoryEntry> entries;
+		std::vector<CachedSubModDirectory> subModDirectories;
+	};
+
+	struct CachedOARDirectory
+	{
+		std::filesystem::path path;
+		std::vector<CachedModDirectory> modDirectories;
+	};
+
+	struct CachedLegacySubMod
+	{
+		std::filesystem::path path;
+		std::vector<CachedAnimationFile> animationFiles;
+	};
+
+	struct CachedLegacyEntry
+	{
+		std::filesystem::path path;
+		bool isCustomConditions = false;
+		std::vector<CachedLegacySubMod> subMods;
+	};
+
+	struct CachedLegacyDirectory
+	{
+		std::filesystem::path path;
+		std::vector<CachedDirectoryEntry> entries;
+		std::vector<CachedLegacyEntry> detailedEntries;
+	};
+
+	struct DirectoryCache
+	{
+		std::vector<CachedOARDirectory> oarDirectories;
+		std::vector<CachedLegacyDirectory> legacyDirectories;
+		std::atomic<bool> bIsComplete{ false };
+		mutable std::shared_mutex cacheLock;
+	};
+
 	void ParseDirectory(const std::filesystem::directory_entry& a_directory, ParseResults& a_outParseResults);
 	[[nodiscard]] ModParseResult ParseModDirectory(const std::filesystem::directory_entry& a_directory);
+	[[nodiscard]] ModParseResult ParseModDirectory(const CachedModDirectory& a_cachedMod);
 	[[nodiscard]] SubModParseResult ParseModSubdirectory(const std::filesystem::directory_entry& a_subDirectory, bool a_bIsLegacy = false);
+	[[nodiscard]] SubModParseResult ParseModSubdirectory(const CachedSubModDirectory& a_cachedSubMod, bool a_bIsLegacy = false);
 	[[nodiscard]] SubModParseResult ParseLegacyCustomConditionsDirectory(const std::filesystem::directory_entry& a_directory);
+	[[nodiscard]] SubModParseResult ParseLegacyCustomConditionsDirectory(const CachedLegacySubMod& a_cachedSubMod);
 	[[nodiscard]] std::vector<SubModParseResult> ParseLegacyPluginDirectory(const std::filesystem::directory_entry& a_directory);
+	[[nodiscard]] std::vector<SubModParseResult> ParseLegacyPluginDirectory(const CachedLegacyEntry& a_cachedEntry);
 	[[nodiscard]] std::optional<ReplacementAnimationFile> ParseReplacementAnimationEntry(std::string_view a_fullPath);
 	[[nodiscard]] std::optional<ReplacementAnimationFile> ParseReplacementAnimationVariants(std::string_view a_fullVariantsPath);
+	[[nodiscard]] std::optional<ReplacementAnimationFile> ParseReplacementAnimationVariants(const CachedAnimationFile& a_cachedVariants);
 	[[nodiscard]] std::vector<ReplacementAnimationFile> ParseAnimationsInDirectory(const std::filesystem::directory_entry& a_directory, bool a_bIsLegacy = false);
+	[[nodiscard]] std::vector<ReplacementAnimationFile> ParseAnimationsFromCache(const CachedSubModDirectory& a_cachedSubMod, bool a_bIsLegacy = false);
 
 	[[nodiscard]] bool IsPathValid(const std::filesystem::path& a_path);
+	void StartDirectoryCaching();
 }

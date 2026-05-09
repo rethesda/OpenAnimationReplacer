@@ -3,15 +3,41 @@
 #include <future>
 #include <mmio/mmio.hpp>
 #include <rapidjson/document.h>
-#include <rapidjson/filereadstream.h>
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/prettywriter.h>
+#include <thread>
 
 #include <array>
 #include <atomic>
 
+#include "AnimationFileHashCache.h"
 #include "OpenAnimationReplacer.h"
 #include "Settings.h"
+
+#ifdef _WIN32
+constexpr ULONG ThreadIoPriority = 19;
+constexpr ULONG LowThreadIoPriority = 0;
+constexpr ULONG HighThreadIoPriority = 3;
+using NtSetInformationThreadFn = NTSTATUS(NTAPI*)(HANDLE, ULONG, PVOID, ULONG);
+
+static std::atomic<DWORD> g_directoryCacheThreadId{ 0 };
+
+static void SetIOPriority(HANDLE a_thread, ULONG a_priority)
+{
+	if (const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll")) {
+		if (const auto ntSetInformationThread = reinterpret_cast<NtSetInformationThreadFn>(GetProcAddress(ntdll, "NtSetInformationThread"))) {
+			ntSetInformationThread(a_thread, ThreadIoPriority, &a_priority, sizeof(a_priority));
+		}
+	}
+}
+
+static void SetLowIOPriority()
+{
+	SetIOPriority(GetCurrentThread(), LowThreadIoPriority);
+}
+#endif
+
+static std::atomic<uint32_t> g_precachedHashCount{ 0 };
 
 namespace Parsing
 {
@@ -20,23 +46,9 @@ namespace Parsing
 		constexpr auto timingBucketCount = static_cast<size_t>(TimingBucket::kTotal);
 		constexpr auto timingCounterCount = static_cast<size_t>(TimingCounter::kTotal);
 
-		enum class WallTimingBucket : uint8_t
-		{
-			kDiscovery,
-			kExecuteParseJobs,
-			kOARModJobs,
-			kLegacyCustomConditionJobs,
-			kLegacyPluginJobs,
-			kTotal
-		};
-
-		constexpr auto wallTimingBucketCount = static_cast<size_t>(WallTimingBucket::kTotal);
-
 		std::array<std::atomic<int64_t>, timingBucketCount> timingNanoseconds;
 		std::array<std::atomic<uint64_t>, timingBucketCount> timingCounts;
 		std::array<std::atomic<uint64_t>, timingCounterCount> timingCounters;
-		std::array<int64_t, wallTimingBucketCount> wallTimingNanoseconds;
-		std::array<uint64_t, wallTimingBucketCount> wallTimingCounts;
 
 		constexpr std::string_view GetTimingBucketName(TimingBucket a_bucket)
 		{
@@ -64,59 +76,6 @@ namespace Parsing
 		{
 			return std::chrono::duration<double, std::milli>(std::chrono::nanoseconds(a_nanoseconds)).count();
 		}
-
-		constexpr std::string_view GetWallTimingBucketName(WallTimingBucket a_bucket)
-		{
-			switch (a_bucket) {
-			case WallTimingBucket::kDiscovery:
-				return "Discovery";
-			case WallTimingBucket::kExecuteParseJobs:
-				return "Execute parse jobs";
-			case WallTimingBucket::kOARModJobs:
-				return "Waiting for OAR mod jobs";
-			case WallTimingBucket::kLegacyCustomConditionJobs:
-				return "Waiting for DAR _CustomConditions jobs";
-			case WallTimingBucket::kLegacyPluginJobs:
-				return "Waiting for DAR plugin jobs";
-			default:
-				return "Unknown";
-			}
-		}
-
-		void AddWallTiming(WallTimingBucket a_bucket, std::chrono::nanoseconds a_duration)
-		{
-			if constexpr (bEnableParseTiming) {
-				const auto index = static_cast<size_t>(a_bucket);
-				wallTimingNanoseconds[index] += a_duration.count();
-				++wallTimingCounts[index];
-			}
-		}
-
-		class ScopedWallTimer
-		{
-		public:
-			explicit ScopedWallTimer(WallTimingBucket a_bucket) :
-				_bucket(a_bucket)
-			{
-				if constexpr (bEnableParseTiming) {
-					_startTime = std::chrono::steady_clock::now();
-				}
-			}
-
-			ScopedWallTimer(const ScopedWallTimer&) = delete;
-			ScopedWallTimer& operator=(const ScopedWallTimer&) = delete;
-
-			~ScopedWallTimer()
-			{
-				if constexpr (bEnableParseTiming) {
-					AddWallTiming(_bucket, std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - _startTime));
-				}
-			}
-
-		private:
-			WallTimingBucket _bucket;
-			std::chrono::steady_clock::time_point _startTime;
-		};
 	}
 
 	void ResetTimingStats()
@@ -131,8 +90,6 @@ namespace Parsing
 			for (auto& counter : timingCounters) {
 				counter.store(0, std::memory_order_relaxed);
 			}
-			wallTimingNanoseconds.fill(0);
-			wallTimingCounts.fill(0);
 		}
 	}
 
@@ -163,15 +120,6 @@ namespace Parsing
 			const auto directoryHiddenRecursionSkips = timingCounters[static_cast<size_t>(TimingCounter::kDirectoryHiddenRecursionSkips)].load(std::memory_order_relaxed);
 			if (directoryEntries || directoryDirectories || directoryFiles || directoryHkxFiles || directoryInvalidPaths || directoryHiddenRecursionSkips) {
 				logger::info("  Directory scan details: {} entries, {} directories, {} files, {} hkx files, {} invalid paths, {} hidden recursion skips", directoryEntries, directoryDirectories, directoryFiles, directoryHkxFiles, directoryInvalidPaths, directoryHiddenRecursionSkips);
-			}
-
-			logger::info("Parsing wall timings (main-thread waits; nested phases may overlap with worker-time above):");
-			for (size_t i = 0; i < wallTimingBucketCount; ++i) {
-				const auto duration = wallTimingNanoseconds[i];
-				const auto count = wallTimingCounts[i];
-				if (count > 0) {
-					logger::info("  {}: {:.3f}ms ({} calls)", GetWallTimingBucketName(static_cast<WallTimingBucket>(i)), ToMilliseconds(duration), count);
-				}
 			}
 		}
 	}
@@ -787,218 +735,93 @@ namespace Parsing
 		return static_cast<uint16_t>(-1);
 	}
 
-	struct ParseJobs
+	template <typename T>
+	static std::future<T> MakeFuture(T& a_t)
 	{
-		std::vector<std::filesystem::path> modDirectories;
-		std::vector<std::filesystem::path> legacyCustomConditionDirectories;
-		std::vector<std::filesystem::directory_entry> legacyPluginDirectories;
-	};
+		std::promise<T> p;
+		p.set_value(std::forward<T>(a_t));
+		return p.get_future();
+	}
 
-	class WorkerPool
+	static DirectoryCache g_directoryCache;
+
+	static bool IsDirectoryCacheReady();
+	static void WaitForDirectoryCache();
+
+	static void ParseCachedOARDirectory(const CachedOARDirectory& a_cachedOAR, ParseResults& a_outParseResults)
 	{
-	public:
-		explicit WorkerPool(std::size_t a_workerCount)
-		{
-			for (std::size_t i = 0; i < a_workerCount; ++i) {
-				_threads.emplace_back([this] {
-					Run();
-				});
+		for (const auto& cachedMod : a_cachedOAR.modDirectories) {
+			if (!IsPathValid(cachedMod.path)) {
+				continue;
 			}
+
+			if (!cachedMod.subModDirectories.empty()) {
+				a_outParseResults.modParseResultFutures.emplace_back(std::async(std::launch::async, [cachedMod]() {
+					return ParseModDirectory(cachedMod);
+				}));
+				continue;
+			}
+
+			std::filesystem::directory_entry modEntry(cachedMod.path);
+			if (!Utils::IsDirectory(modEntry)) {
+				continue;
+			}
+
+			a_outParseResults.modParseResultFutures.emplace_back(std::async(std::launch::async, [modEntry]() {
+				return ParseModDirectory(modEntry);
+			}));
 		}
+	}
 
-		~WorkerPool()
-		{
-			{
-				std::lock_guard lock(_mutex);
-				_stopping = true;
-			}
-
-			_cv.notify_all();
-
-			for (auto& thread : _threads) {
-				if (thread.joinable()) {
-					thread.join();
+	static void ParseCachedLegacyDirectory(const CachedLegacyDirectory& a_cachedLegacy, ParseResults& a_outParseResults)
+	{
+		if (!a_cachedLegacy.detailedEntries.empty()) {
+			for (const auto& detailedEntry : a_cachedLegacy.detailedEntries) {
+				if (!IsPathValid(detailedEntry.path)) {
+					continue;
 				}
-			}
-		}
 
-		template <class F>
-		auto Enqueue(F&& a_func)
-		{
-			using Result = std::invoke_result_t<std::decay_t<F>>;
-
-			auto task = std::make_shared<std::packaged_task<Result()>>(std::forward<F>(a_func));
-			auto future = task->get_future();
-
-			{
-				std::lock_guard lock(_mutex);
-				_jobs.emplace([task] {
-					(*task)();
-				});
-			}
-
-			_cv.notify_one();
-			return future;
-		}
-
-	private:
-		void Run()
-		{
-			while (true) {
-				std::function<void()> job;
-
-				{
-					std::unique_lock lock(_mutex);
-					_cv.wait(lock, [this] {
-						return _stopping || !_jobs.empty();
-					});
-
-					if (_stopping && _jobs.empty()) {
-						return;
+				if (detailedEntry.isCustomConditions) {
+					for (const auto& cachedSubMod : detailedEntry.subMods) {
+						a_outParseResults.legacyParseResultFutures.emplace_back(std::async(std::launch::async, [cachedSubMod]() {
+							return ParseLegacyCustomConditionsDirectory(cachedSubMod);
+						}));
 					}
-
-					job = std::move(_jobs.front());
-					_jobs.pop();
+				} else {
+					for (auto subModParseResults = ParseLegacyPluginDirectory(detailedEntry); auto& subModParseResult : subModParseResults) {
+						if (subModParseResult.bSuccess) {
+							a_outParseResults.legacyParseResultFutures.emplace_back(MakeFuture(subModParseResult));
+						}
+					}
 				}
-
-				job();
 			}
+			return;
 		}
 
-		std::vector<std::thread> _threads;
-		std::queue<std::function<void()>> _jobs;
-		std::mutex _mutex;
-		std::condition_variable _cv;
-		bool _stopping = false;
-	};
-
-	void DiscoverOARModJobs(const std::filesystem::directory_entry& a_oarDirectory, ParseJobs& a_outParseJobs)
-	{
-		for (const auto& subEntry : std::filesystem::directory_iterator(a_oarDirectory)) {
-			if (Utils::IsDirectory(subEntry)) {
-				// We're in a mod folder. We have the subfolders here and a json.
-				a_outParseJobs.modDirectories.emplace_back(subEntry.path());
+		for (const auto& cachedEntry : a_cachedLegacy.entries) {
+			if (!cachedEntry.isDirectory) {
+				continue;
 			}
-		}
-	}
 
-	void DiscoverLegacyCustomConditionJobs(const std::filesystem::directory_entry& a_customConditionsDirectory, ParseJobs& a_outParseJobs)
-	{
-		for (const auto& subEntry : std::filesystem::directory_iterator(a_customConditionsDirectory)) {
-			if (Utils::IsDirectory(subEntry)) {
-				a_outParseJobs.legacyCustomConditionDirectories.emplace_back(subEntry.path());
-			}
-		}
-	}
-
-	void DiscoverLegacyJobs(const std::filesystem::directory_entry& a_legacyDirectory, ParseJobs& a_outParseJobs)
-	{
-		for (const auto& subEntry : std::filesystem::directory_iterator(a_legacyDirectory)) {
+			std::filesystem::directory_entry subEntry(cachedEntry.path);
 			if (!Utils::IsDirectory(subEntry) || !IsPathValid(subEntry.path())) {
 				continue;
 			}
 
 			if (Utils::CompareStringsIgnoreCase(subEntry.path().stem().string(), "_CustomConditions"sv)) {
-				// We're in the DAR _CustomConditions directory.
-				DiscoverLegacyCustomConditionJobs(subEntry, a_outParseJobs);
+				for (const auto& subSubEntry : std::filesystem::directory_iterator(subEntry)) {
+					if (Utils::IsDirectory(subSubEntry)) {
+						a_outParseResults.legacyParseResultFutures.emplace_back(std::async(std::launch::async, [subSubEntry]() {
+							return ParseLegacyCustomConditionsDirectory(subSubEntry);
+						}));
+					}
+				}
 			} else {
-				a_outParseJobs.legacyPluginDirectories.emplace_back(subEntry);
-			}
-		}
-	}
-
-	ParseJobs DiscoverParseJobs(const std::filesystem::directory_entry& a_directory)
-	{
-		ParseJobs parseJobs;
-
-		static constexpr auto oarFolderName = "openanimationreplacer"sv;
-		static constexpr auto legacyFolderName = "dynamicanimationreplacer"sv;
-
-		for (std::filesystem::recursive_directory_iterator i(a_directory), end; i != end; ++i) {
-			auto entry = *i;
-			if (!Utils::IsDirectory(entry)) {
-				continue;
-			}
-
-			if (!IsPathValid(entry.path())) {
-				i.disable_recursion_pending();
-				continue;
-			}
-
-			std::string stemString = entry.path().stem().string();
-
-			if (Utils::CompareStringsIgnoreCase(stemString, oarFolderName)) {
-				DiscoverOARModJobs(entry, parseJobs);
-				i.disable_recursion_pending();
-			} else if (Utils::CompareStringsIgnoreCase(stemString, legacyFolderName)) {
-				DiscoverLegacyJobs(entry, parseJobs);
-				i.disable_recursion_pending();
-			}
-		}
-
-		return parseJobs;
-	}
-
-	void AppendLegacyParseResults(std::vector<SubModParseResult>& a_parseResults, ParseResults& a_outParseResults)
-	{
-		for (auto& subModParseResult : a_parseResults) {
-			if (subModParseResult.bSuccess) {
-				a_outParseResults.legacyParseResults.emplace_back(std::move(subModParseResult));
-			}
-		}
-	}
-
-	void ExecuteParseJobs(const ParseJobs& a_parseJobs, ParseResults& a_outParseResults)
-	{
-		ScopedWallTimer executeTimer(WallTimingBucket::kExecuteParseJobs);
-		const auto workerCount = std::clamp(Settings::uParsingWorkerCount, 1u, 32u);
-		logger::info("Using {} parsing worker(s).", workerCount);
-
-		WorkerPool pool(workerCount);
-
-		std::vector<std::future<ModParseResult>> modFutures;
-		std::vector<std::future<SubModParseResult>> legacyFutures;
-		std::vector<std::future<std::vector<SubModParseResult>>> legacyPluginFutures;
-
-		for (const auto& path : a_parseJobs.modDirectories) {
-			modFutures.emplace_back(pool.Enqueue([path] {
-				return ParseModDirectory(std::filesystem::directory_entry(path));
-			}));
-		}
-
-		for (const auto& path : a_parseJobs.legacyCustomConditionDirectories) {
-			legacyFutures.emplace_back(pool.Enqueue([path] {
-				return ParseLegacyCustomConditionsDirectory(std::filesystem::directory_entry(path));
-			}));
-		}
-
-		for (const auto& directory : a_parseJobs.legacyPluginDirectories) {
-			legacyPluginFutures.emplace_back(pool.Enqueue([directory] {
-				return ParseLegacyPluginDirectory(directory);
-			}));
-		}
-
-		{
-			ScopedWallTimer timer(WallTimingBucket::kOARModJobs);
-			for (auto& future : modFutures) {
-				auto modParseResult = future.get();
-				a_outParseResults.modParseResults.emplace_back(std::move(modParseResult));
-			}
-		}
-
-		{
-			ScopedWallTimer timer(WallTimingBucket::kLegacyCustomConditionJobs);
-			for (auto& future : legacyFutures) {
-				auto subModParseResult = future.get();
-				a_outParseResults.legacyParseResults.emplace_back(std::move(subModParseResult));
-			}
-		}
-
-		{
-			ScopedWallTimer timer(WallTimingBucket::kLegacyPluginJobs);
-			for (auto& future : legacyPluginFutures) {
-				auto subModParseResults = future.get();
-				AppendLegacyParseResults(subModParseResults, a_outParseResults);
+				for (auto subModParseResults = ParseLegacyPluginDirectory(subEntry); auto& subModParseResult : subModParseResults) {
+					if (subModParseResult.bSuccess) {
+						a_outParseResults.legacyParseResultFutures.emplace_back(MakeFuture(subModParseResult));
+					}
+				}
 			}
 		}
 	}
@@ -1009,14 +832,22 @@ namespace Parsing
 			return;
 		}
 
-		ParseJobs parseJobs;
-		{
-			ScopedWallTimer timer(WallTimingBucket::kDiscovery);
-			parseJobs = DiscoverParseJobs(a_directory);
+		if (!IsDirectoryCacheReady()) {
+			logger::info("Waiting for directory cache to complete...");
+			WaitForDirectoryCache();
 		}
-		ExecuteParseJobs(parseJobs, a_outParseResults);
-	}
 
+		{
+			std::shared_lock lock(g_directoryCache.cacheLock);
+			for (const auto& cachedOAR : g_directoryCache.oarDirectories) {
+				ParseCachedOARDirectory(cachedOAR, a_outParseResults);
+			}
+			for (const auto& cachedLegacy : g_directoryCache.legacyDirectories) {
+				ParseCachedLegacyDirectory(cachedLegacy, a_outParseResults);
+			}
+		}
+		return;
+	}
 	ModParseResult ParseModDirectory(const std::filesystem::directory_entry& a_directory)
 	{
 		ModParseResult result;
@@ -1057,6 +888,51 @@ namespace Parsing
 						if (subModParseResult.bSuccess) {
 							result.subModParseResults.emplace_back(std::move(subModParseResult));
 						}
+					}
+				}
+			}
+		}
+		return result;
+	}
+	ModParseResult ParseModDirectory(const CachedModDirectory& a_cachedMod)
+	{
+		ModParseResult result;
+
+		if (IsPathValid(a_cachedMod.path)) {
+			bool bDeserializeSuccess = false;
+
+			const auto configJsonPath = a_cachedMod.path / "config.json"sv;
+			if (Utils::IsRegularFile(configJsonPath)) {
+				result.configSource = ConfigSource::kAuthor;
+
+				const auto userJsonPath = a_cachedMod.path / "user.json"sv;
+				if (Utils::IsRegularFile(userJsonPath)) {
+					result.configSource = ConfigSource::kUser;
+
+					if (!DeserializeMod(configJsonPath, DeserializeMode::kInfoOnly, result)) {
+						return result;
+					}
+				}
+
+				if (result.configSource == ConfigSource::kUser) {
+					bDeserializeSuccess = DeserializeMod(userJsonPath, DeserializeMode::kDataOnly, result);
+				} else {
+					bDeserializeSuccess = DeserializeMod(configJsonPath, DeserializeMode::kFull, result);
+				}
+			}
+
+			if (bDeserializeSuccess) {
+				std::vector<std::future<SubModParseResult>> futures;
+				for (const auto& cachedSubMod : a_cachedMod.subModDirectories) {
+					futures.emplace_back(std::async(std::launch::async, [cachedSubMod]() {
+						return ParseModSubdirectory(cachedSubMod, false);
+					}));
+				}
+
+				for (auto& future : futures) {
+					auto subModParseResult = future.get();
+					if (subModParseResult.bSuccess) {
+						result.subModParseResults.emplace_back(std::move(subModParseResult));
 					}
 				}
 			}
@@ -1128,6 +1004,63 @@ namespace Parsing
 		return result;
 	}
 
+	SubModParseResult ParseModSubdirectory(const CachedSubModDirectory& a_cachedSubMod, bool a_bIsLegacy)
+	{
+		SubModParseResult result;
+
+		if (IsPathValid(a_cachedSubMod.path)) {
+			bool bDeserializeSuccess = false;
+
+			if (a_bIsLegacy) {
+				const auto userJsonPath = a_cachedSubMod.path / "user.json"sv;
+				if (Utils::IsRegularFile(userJsonPath)) {
+					result.configSource = ConfigSource::kUser;
+					bDeserializeSuccess = DeserializeSubMod(userJsonPath, DeserializeMode::kDataOnly, result);
+				} else {
+					return result;
+				}
+			} else {
+				const auto configJsonPath = a_cachedSubMod.path / "config.json"sv;
+				if (Utils::IsRegularFile(configJsonPath)) {
+					result.configSource = ConfigSource::kAuthor;
+
+					const auto userJsonPath = a_cachedSubMod.path / "user.json"sv;
+					if (Utils::IsRegularFile(userJsonPath)) {
+						result.configSource = ConfigSource::kUser;
+
+						if (!DeserializeSubMod(configJsonPath, DeserializeMode::kInfoOnly, result)) {
+							return result;
+						}
+					}
+
+					if (result.configSource == ConfigSource::kUser) {
+						bDeserializeSuccess = DeserializeSubMod(userJsonPath, DeserializeMode::kDataOnly, result);
+					} else {
+						bDeserializeSuccess = DeserializeSubMod(configJsonPath, DeserializeMode::kFull, result);
+					}
+				} else {
+					return result;
+				}
+			}
+
+			if (bDeserializeSuccess) {
+				if (result.overrideAnimationsFolder.empty()) {
+					result.animationFiles = ParseAnimationsFromCache(a_cachedSubMod, a_bIsLegacy);
+				} else {
+					const auto overridePath = a_cachedSubMod.path.parent_path() / result.overrideAnimationsFolder;
+					const auto overrideDirectory = std::filesystem::directory_entry(overridePath);
+					if (Utils::IsDirectory(overrideDirectory)) {
+						result.animationFiles = ParseAnimationsInDirectory(overrideDirectory, a_bIsLegacy);
+					} else {
+						result.bSuccess = false;
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
 	SubModParseResult ParseLegacyCustomConditionsDirectory(const std::filesystem::directory_entry& a_directory)
 	{
 		SubModParseResult result;
@@ -1178,6 +1111,145 @@ namespace Parsing
 		}
 
 		return result;
+	}
+
+	static std::vector<ReplacementAnimationFile> ParseAnimationsFromLegacyCache(const CachedLegacySubMod& a_cachedSubMod)
+	{
+		std::vector<ReplacementAnimationFile> result;
+
+		for (const auto& cachedAnim : a_cachedSubMod.animationFiles) {
+			if (auto anim = ParseReplacementAnimationEntry(cachedAnim.path.string())) {
+				result.emplace_back(*anim);
+			}
+		}
+
+		return result;
+	}
+
+	SubModParseResult ParseLegacyCustomConditionsDirectory(const CachedLegacySubMod& a_cachedSubMod)
+	{
+		SubModParseResult result;
+
+		if (IsPathValid(a_cachedSubMod.path)) {
+			const std::filesystem::path txtPath = a_cachedSubMod.path / "_conditions.txt"sv;
+			if (Utils::Exists(txtPath)) {
+				const auto jsonPath = a_cachedSubMod.path / "user.json"sv;
+				if (Utils::IsRegularFile(jsonPath)) {
+					CachedSubModDirectory cachedOARSubMod;
+					cachedOARSubMod.path = a_cachedSubMod.path;
+					cachedOARSubMod.animationFiles = a_cachedSubMod.animationFiles;
+					result = ParseModSubdirectory(cachedOARSubMod, true);
+					result.name = std::to_string(result.priority);
+					return result;
+				}
+			}
+
+			int32_t priority = 0;
+			std::string directoryName = a_cachedSubMod.path.filename().string();
+
+			if (directoryName.find_first_not_of("-0123456789"sv) == std::string::npos) {
+				auto [ptr, ec]{ std::from_chars(directoryName.data(), directoryName.data() + directoryName.size(), priority) };
+				if (ec == std::errc()) {
+					if (Utils::Exists(txtPath)) {
+						result.configSource = ConfigSource::kLegacy;
+						result.name = std::to_string(priority);
+						result.priority = priority;
+						result.conditionSet = ParseConditionsTxt(txtPath);
+						result.animationFiles = ParseAnimationsFromLegacyCache(a_cachedSubMod);
+						result.bSuccess = true;
+					} else {
+						const auto subEntryPath = a_cachedSubMod.path.u8string();
+						std::string_view subEntryPathSv(reinterpret_cast<const char*>(subEntryPath.data()), subEntryPath.size());
+						logger::warn("directory at {} is missing the _conditions.txt file, skipping", subEntryPathSv);
+					}
+				} else {
+					const auto subEntryPath = a_cachedSubMod.path.u8string();
+					std::string_view subEntryPathSv(reinterpret_cast<const char*>(subEntryPath.data()), subEntryPath.size());
+					logger::warn("invalid directory name at {}, skipping", subEntryPathSv);
+				}
+			} else {
+				const auto subEntryPath = a_cachedSubMod.path.u8string();
+				std::string_view subEntryPathSv(reinterpret_cast<const char*>(subEntryPath.data()), subEntryPath.size());
+				logger::warn("invalid directory name at {}, skipping", subEntryPathSv);
+			}
+
+			result.path = a_cachedSubMod.path.string();
+		}
+
+		return result;
+	}
+
+	std::vector<SubModParseResult> ParseLegacyPluginDirectory(const CachedLegacyEntry& a_cachedEntry)
+	{
+		std::vector<SubModParseResult> results;
+
+		for (const auto& cachedSubMod : a_cachedEntry.subMods) {
+			if (!IsPathValid(cachedSubMod.path)) {
+				continue;
+			}
+
+			auto jsonPath = cachedSubMod.path / "user.json"sv;
+			if (Utils::IsRegularFile(jsonPath)) {
+				CachedSubModDirectory cachedOARSubMod;
+				cachedOARSubMod.path = cachedSubMod.path;
+				cachedOARSubMod.animationFiles = cachedSubMod.animationFiles;
+				auto result = ParseModSubdirectory(cachedOARSubMod, true);
+
+				const std::string fileString = a_cachedEntry.path.stem().string();
+				const std::string extensionString = a_cachedEntry.path.extension().string();
+
+				const std::string modName = fileString + extensionString;
+				const std::string formIDString = cachedSubMod.path.filename().string();
+				result.name = modName;
+				result.name += '|';
+				result.name += formIDString;
+
+				results.emplace_back(std::move(result));
+				continue;
+			}
+
+			if (cachedSubMod.animationFiles.empty()) {
+				continue;
+			}
+
+			RE::FormID formID;
+			std::string directoryName = cachedSubMod.path.filename().string();
+
+			auto [ptr, ec]{ std::from_chars(directoryName.data(), directoryName.data() + directoryName.size(), formID, 16) };
+			if (ec == std::errc()) {
+				std::string fileString = a_cachedEntry.path.stem().string();
+				std::string extensionString = a_cachedEntry.path.extension().string();
+
+				std::string modName = fileString + extensionString;
+				if (auto form = Utils::LookupForm(formID, modName)) {
+					auto conditionSet = std::make_unique<Conditions::ConditionSet>();
+					std::string argument = modName;
+					argument += '|';
+					argument += directoryName;
+					auto condition = OpenAnimationReplacer::GetSingleton().CreateCondition("IsActorBase");
+					static_cast<Conditions::IsActorBaseCondition*>(condition.get())->formComponent->SetTESFormValue(form);
+					conditionSet->Add(condition);
+
+					SubModParseResult result;
+
+					result.configSource = ConfigSource::kLegacyActorBase;
+					result.name = argument;
+					result.priority = 0;
+					result.conditionSet = std::move(conditionSet);
+					result.animationFiles = ParseAnimationsFromLegacyCache(cachedSubMod);
+					result.bSuccess = true;
+					result.path = cachedSubMod.path.string();
+
+					results.emplace_back(std::move(result));
+				}
+			} else {
+				auto subEntryPath = cachedSubMod.path.u8string();
+				std::string_view subEntryPathSv(reinterpret_cast<const char*>(subEntryPath.data()), subEntryPath.size());
+				logger::warn("invalid directory name at {}, skipping", subEntryPathSv);
+			}
+		}
+
+		return results;
 	}
 
 	std::vector<SubModParseResult> ParseLegacyPluginDirectory(const std::filesystem::directory_entry& a_directory)
@@ -1367,6 +1439,22 @@ namespace Parsing
 		return ReplacementAnimationFile(a_fullVariantsPath, variants);
 	}
 
+	std::optional<ReplacementAnimationFile> ParseReplacementAnimationVariants(const CachedAnimationFile& a_cachedVariants)
+	{
+		if (!a_cachedVariants.isVariantsDirectory || a_cachedVariants.variantPaths.empty()) {
+			return std::nullopt;
+		}
+
+		std::vector<ReplacementAnimationFile::Variant> variants;
+		variants.reserve(a_cachedVariants.variantPaths.size());
+
+		for (const auto& variantPath : a_cachedVariants.variantPaths) {
+			variants.emplace_back(variantPath.string());
+		}
+
+		return ReplacementAnimationFile(a_cachedVariants.path.string(), variants);
+	}
+
 	std::vector<ReplacementAnimationFile> ParseNonLegacyAnimationsInDirectory(const std::filesystem::directory_entry& a_directory)
 	{
 		std::vector<ReplacementAnimationFile> result;
@@ -1440,6 +1528,30 @@ namespace Parsing
 				result.emplace_back(*anim);
 			}
 		}
+		return result;
+	}
+
+	std::vector<ReplacementAnimationFile> ParseAnimationsFromCache(const CachedSubModDirectory& a_cachedSubMod, bool a_bIsLegacy /* = false*/)
+	{
+		std::vector<ReplacementAnimationFile> result;
+
+		for (const auto& cachedAnim : a_cachedSubMod.animationFiles) {
+			if (cachedAnim.isVariantsDirectory) {
+				if (auto anim = ParseReplacementAnimationVariants(cachedAnim)) {
+					result.emplace_back(*anim);
+				}
+			} else if (auto anim = ParseReplacementAnimationEntry(cachedAnim.path.string())) {
+				result.emplace_back(*anim);
+			}
+		}
+
+		if (!a_bIsLegacy) {
+			for (const auto& subdirectory : a_cachedSubMod.subdirectories) {
+				auto res = ParseAnimationsFromCache(subdirectory, a_bIsLegacy);
+				result.reserve(result.size() + res.size());
+				result.insert(result.end(), std::make_move_iterator(res.begin()), std::make_move_iterator(res.end()));
+			}
+		}
 
 		return result;
 	}
@@ -1473,5 +1585,321 @@ namespace Parsing
 		}
 
 		return true;
+	}
+
+	static void PrecacheAnimationHashes(const std::filesystem::path& a_directory)
+	{
+		if (!Settings::bFilterOutDuplicateAnimations) {
+			return;
+		}
+
+		try {
+			for (const auto& entry : std::filesystem::recursive_directory_iterator(a_directory)) {
+				if (!entry.is_regular_file()) {
+					continue;
+				}
+
+				const auto& path = entry.path();
+				if (!path.has_extension() || !Utils::CompareStringsIgnoreCase(path.extension().string(), ".hkx"sv) || !IsPathValid(path)) {
+					continue;
+				}
+
+				AnimationFileHashCache::CalculateHash(path.string());
+				g_precachedHashCount.fetch_add(1, std::memory_order_relaxed);
+			}
+		} catch (const std::filesystem::filesystem_error& e) {
+			logger::warn("Error pre-caching animation hashes in {}: {}", a_directory.string(), e.what());
+		}
+	}
+
+	static bool IsDirectoryCacheReady()
+	{
+		return g_directoryCache.bIsComplete.load(std::memory_order_acquire);
+	}
+
+	static void WaitForDirectoryCache()
+	{
+#ifdef _WIN32
+		bool bBoostedCacheThread = false;
+#endif
+		while (!g_directoryCache.bIsComplete.load(std::memory_order_acquire)) {
+#ifdef _WIN32
+			if (!bBoostedCacheThread) {
+				const auto cacheThreadId = g_directoryCacheThreadId.load(std::memory_order_acquire);
+				if (cacheThreadId != 0) {
+					if (const auto cacheThread = OpenThread(THREAD_SET_INFORMATION, false, cacheThreadId)) {
+						SetThreadPriority(cacheThread, THREAD_PRIORITY_HIGHEST);
+						SetIOPriority(cacheThread, HighThreadIoPriority);
+						CloseHandle(cacheThread);
+						bBoostedCacheThread = true;
+					}
+				}
+			}
+#endif
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
+	}
+
+	static void CacheSubModDirectoryContents(const std::filesystem::path& a_path, CachedSubModDirectory& a_outCached, bool a_bIsLegacy);
+
+	static void CacheAnimationFilesInDirectory(const std::filesystem::path& a_directory, CachedSubModDirectory& a_outCached, bool a_bIsLegacy)
+	{
+		if (!a_bIsLegacy) {
+			std::vector<std::string> variantDirectoryNames;
+
+			for (const auto& entry : std::filesystem::directory_iterator(a_directory)) {
+				if (!IsPathValid(entry.path())) {
+					continue;
+				}
+
+				if (!Utils::IsDirectory(entry)) {
+					continue;
+				}
+
+				std::string directoryName = entry.path().filename().string();
+				if (directoryName.starts_with("_variants_"sv)) {
+					variantDirectoryNames.emplace_back(ConvertVariantsPath(directoryName));
+
+					CachedAnimationFile cachedAnim;
+					cachedAnim.path = entry.path();
+					cachedAnim.isVariantsDirectory = true;
+
+					for (const auto& variantEntry : std::filesystem::directory_iterator(entry)) {
+						if (IsPathValid(variantEntry.path()) &&
+							Utils::IsRegularFile(variantEntry) &&
+							Utils::CompareStringsIgnoreCase(variantEntry.path().extension().string(), ".hkx"sv)) {
+							cachedAnim.variantPaths.push_back(variantEntry.path());
+						}
+					}
+
+					if (!cachedAnim.variantPaths.empty()) {
+						a_outCached.animationFiles.push_back(std::move(cachedAnim));
+					}
+					continue;
+				}
+
+				CachedSubModDirectory subdirectory;
+				CacheSubModDirectoryContents(entry.path(), subdirectory, a_bIsLegacy);
+				if (!subdirectory.animationFiles.empty() || !subdirectory.subdirectories.empty()) {
+					a_outCached.subdirectories.push_back(std::move(subdirectory));
+				}
+			}
+
+			for (const auto& entry : std::filesystem::directory_iterator(a_directory)) {
+				if (!IsPathValid(entry.path()) || !Utils::IsRegularFile(entry) || !Utils::CompareStringsIgnoreCase(entry.path().extension().string(), ".hkx"sv)) {
+					continue;
+				}
+
+				std::string filename = entry.path().filename().string();
+				const bool bSkip = std::ranges::any_of(variantDirectoryNames, [&](const auto& name) {
+					return filename == name;
+				});
+
+				if (!bSkip) {
+					CachedAnimationFile cachedAnim;
+					cachedAnim.path = entry.path();
+					a_outCached.animationFiles.push_back(std::move(cachedAnim));
+				}
+			}
+		} else {
+			for (const auto& entry : std::filesystem::recursive_directory_iterator(a_directory)) {
+				if (IsPathValid(entry.path()) &&
+					Utils::IsRegularFile(entry) &&
+					Utils::CompareStringsIgnoreCase(entry.path().extension().string(), ".hkx"sv)) {
+					CachedAnimationFile cachedAnim;
+					cachedAnim.path = entry.path();
+					a_outCached.animationFiles.push_back(std::move(cachedAnim));
+				}
+			}
+		}
+	}
+
+	static void CacheSubModDirectoryContents(const std::filesystem::path& a_path, CachedSubModDirectory& a_outCached, bool a_bIsLegacy)
+	{
+		a_outCached.path = a_path;
+		CacheAnimationFilesInDirectory(a_path, a_outCached, a_bIsLegacy);
+	}
+
+	static void CacheOARDirectoryContents(const std::filesystem::directory_entry& a_oarEntry, CachedOARDirectory& a_outCached)
+	{
+		a_outCached.path = a_oarEntry.path();
+
+		for (const auto& modEntry : std::filesystem::directory_iterator(a_oarEntry)) {
+			if (!Utils::IsDirectory(modEntry) || !IsPathValid(modEntry.path())) {
+				continue;
+			}
+
+			CachedModDirectory cachedMod;
+			cachedMod.path = modEntry.path();
+
+			for (const auto& subEntry : std::filesystem::directory_iterator(modEntry)) {
+				if (!IsPathValid(subEntry.path())) {
+					continue;
+				}
+
+				cachedMod.entries.push_back({ subEntry.path(), Utils::IsDirectory(subEntry) });
+
+				if (Utils::IsDirectory(subEntry)) {
+					CachedSubModDirectory cachedSubMod;
+					CacheSubModDirectoryContents(subEntry.path(), cachedSubMod, false);
+					cachedMod.subModDirectories.push_back(std::move(cachedSubMod));
+
+					PrecacheAnimationHashes(subEntry.path());
+				}
+			}
+
+			a_outCached.modDirectories.push_back(std::move(cachedMod));
+		}
+	}
+
+	static void CacheLegacyAnimationFiles(const std::filesystem::path& a_directory, CachedLegacySubMod& a_outCached)
+	{
+		a_outCached.path = a_directory;
+
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(a_directory)) {
+			if (IsPathValid(entry.path()) &&
+				Utils::IsRegularFile(entry) &&
+				Utils::CompareStringsIgnoreCase(entry.path().extension().string(), ".hkx"sv)) {
+				CachedAnimationFile cachedAnim;
+				cachedAnim.path = entry.path();
+				a_outCached.animationFiles.push_back(std::move(cachedAnim));
+			}
+		}
+	}
+
+	static void CacheLegacyDirectoryContents(const std::filesystem::directory_entry& a_legacyEntry, CachedLegacyDirectory& a_outCached)
+	{
+		a_outCached.path = a_legacyEntry.path();
+
+		for (const auto& subEntry : std::filesystem::directory_iterator(a_legacyEntry)) {
+			if (!Utils::IsDirectory(subEntry) || !IsPathValid(subEntry.path())) {
+				continue;
+			}
+
+			a_outCached.entries.push_back({ subEntry.path(), true });
+
+			CachedLegacyEntry detailedEntry;
+			detailedEntry.path = subEntry.path();
+
+			if (Utils::CompareStringsIgnoreCase(subEntry.path().stem().string(), "_CustomConditions"sv)) {
+				detailedEntry.isCustomConditions = true;
+
+				for (const auto& customConditionEntry : std::filesystem::directory_iterator(subEntry)) {
+					if (Utils::IsDirectory(customConditionEntry) && IsPathValid(customConditionEntry.path())) {
+						CachedLegacySubMod cachedSubMod;
+						CacheLegacyAnimationFiles(customConditionEntry.path(), cachedSubMod);
+						detailedEntry.subMods.push_back(std::move(cachedSubMod));
+
+						PrecacheAnimationHashes(customConditionEntry.path());
+					}
+				}
+			} else {
+				for (const auto& formIdEntry : std::filesystem::directory_iterator(subEntry)) {
+					if (Utils::IsDirectory(formIdEntry) && IsPathValid(formIdEntry.path())) {
+						CachedLegacySubMod cachedSubMod;
+						CacheLegacyAnimationFiles(formIdEntry.path(), cachedSubMod);
+						detailedEntry.subMods.push_back(std::move(cachedSubMod));
+
+						PrecacheAnimationHashes(formIdEntry.path());
+					}
+				}
+			}
+
+			a_outCached.detailedEntries.push_back(std::move(detailedEntry));
+		}
+	}
+
+	static void CacheDirectoriesInternal()
+	{
+		// We do NOT want to overly optimize/parallelize this thread - we want the lowest IO priority possible
+		// Otherwise all perf gain is lost due to other loading stuff choking (i.e .esp loading, etc)
+#ifdef _WIN32
+		SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_LOWEST);
+		SetLowIOPriority();
+#endif
+
+		logger::info("Starting directory cache...");
+		const auto startTime = std::chrono::high_resolution_clock::now();
+
+		static constexpr auto oarFolderName = "openanimationreplacer"sv;
+		static constexpr auto legacyFolderName = "dynamicanimationreplacer"sv;
+		static constexpr auto meshesPath = "data\\meshes\\"sv;
+
+		const std::filesystem::directory_entry meshesDir(meshesPath);
+		if (!Utils::Exists(meshesDir)) {
+			logger::warn("Meshes directory not found, skipping directory cache");
+			g_directoryCache.bIsComplete.store(true, std::memory_order_release);
+			return;
+		}
+
+		std::vector<CachedOARDirectory> oarDirs;
+		std::vector<CachedLegacyDirectory> legacyDirs;
+
+		try {
+			for (std::filesystem::recursive_directory_iterator i(meshesDir), end; i != end; ++i) {
+				auto entry = *i;
+				if (!Utils::IsDirectory(entry)) {
+					continue;
+				}
+
+				if (!IsPathValid(entry.path())) {
+					i.disable_recursion_pending();
+					continue;
+				}
+
+				std::string stemString = entry.path().stem().string();
+				if (Utils::CompareStringsIgnoreCase(stemString, oarFolderName)) {
+					CachedOARDirectory cachedOAR;
+					CacheOARDirectoryContents(entry, cachedOAR);
+					oarDirs.push_back(std::move(cachedOAR));
+					i.disable_recursion_pending();
+				} else if (Utils::CompareStringsIgnoreCase(stemString, legacyFolderName)) {
+					CachedLegacyDirectory cachedLegacy;
+					CacheLegacyDirectoryContents(entry, cachedLegacy);
+					legacyDirs.push_back(std::move(cachedLegacy));
+					i.disable_recursion_pending();
+				}
+			}
+		} catch (const std::filesystem::filesystem_error& e) {
+			logger::warn("Error while caching directories: {}", e.what());
+		}
+
+		{
+			std::unique_lock lock(g_directoryCache.cacheLock);
+			g_directoryCache.oarDirectories = std::move(oarDirs);
+			g_directoryCache.legacyDirectories = std::move(legacyDirs);
+		}
+
+		const auto endTime = std::chrono::high_resolution_clock::now();
+		const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+		const auto hashCount = g_precachedHashCount.load(std::memory_order_relaxed);
+
+		if (Settings::bFilterOutDuplicateAnimations) {
+			logger::info("Directory cache complete: {} OAR directories, {} legacy directories, {} animation hashes ({}ms)",
+				g_directoryCache.oarDirectories.size(),
+				g_directoryCache.legacyDirectories.size(),
+				hashCount,
+				duration);
+		} else {
+			logger::info("Directory cache complete: {} OAR directories, {} legacy directories ({}ms)",
+				g_directoryCache.oarDirectories.size(),
+				g_directoryCache.legacyDirectories.size(),
+				duration);
+		}
+
+		g_directoryCache.bIsComplete.store(true, std::memory_order_release);
+	}
+
+	void StartDirectoryCaching()
+	{
+		std::thread([]() {
+#ifdef _WIN32
+			g_directoryCacheThreadId.store(GetCurrentThreadId(), std::memory_order_release);
+#endif
+			CacheDirectoriesInternal();
+#ifdef _WIN32
+			g_directoryCacheThreadId.store(0, std::memory_order_release);
+#endif
+		}).detach();
 	}
 }
