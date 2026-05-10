@@ -7,8 +7,12 @@
 #include <rapidjson/prettywriter.h>
 #include <thread>
 
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <condition_variable>
+#include <queue>
+#include <type_traits>
 
 #include "AnimationFileHashCache.h"
 #include "OpenAnimationReplacer.h"
@@ -76,6 +80,86 @@ namespace Parsing
 		{
 			return std::chrono::duration<double, std::milli>(std::chrono::nanoseconds(a_nanoseconds)).count();
 		}
+
+		class WorkerPool
+		{
+		public:
+			explicit WorkerPool(uint32_t a_workerCount)
+			{
+				a_workerCount = std::max(1u, a_workerCount);
+				_workers.reserve(a_workerCount);
+
+				for (uint32_t i = 0; i < a_workerCount; ++i) {
+					_workers.emplace_back([this]() {
+						while (true) {
+							std::function<void()> task;
+
+							{
+								std::unique_lock lock(_queueLock);
+								_condition.wait(lock, [this]() {
+									return _bStop || !_tasks.empty();
+								});
+
+								if (_bStop && _tasks.empty()) {
+									return;
+								}
+
+								task = std::move(_tasks.front());
+								_tasks.pop();
+							}
+
+							task();
+						}
+					});
+				}
+			}
+
+			WorkerPool(const WorkerPool&) = delete;
+			WorkerPool& operator=(const WorkerPool&) = delete;
+
+			~WorkerPool()
+			{
+				{
+					std::scoped_lock lock(_queueLock);
+					_bStop = true;
+				}
+
+				_condition.notify_all();
+
+				for (auto& worker : _workers) {
+					if (worker.joinable()) {
+						worker.join();
+					}
+				}
+			}
+
+			template <class F>
+			auto Enqueue(F&& a_task)
+			{
+				using ReturnType = std::invoke_result_t<std::decay_t<F>>;
+
+				auto task = std::make_shared<std::packaged_task<ReturnType()>>(std::forward<F>(a_task));
+				auto future = task->get_future();
+
+				{
+					std::scoped_lock lock(_queueLock);
+					_tasks.emplace([task]() {
+						(*task)();
+					});
+				}
+
+				_condition.notify_one();
+
+				return future;
+			}
+
+		private:
+			std::vector<std::thread> _workers;
+			std::queue<std::function<void()>> _tasks;
+			std::mutex _queueLock;
+			std::condition_variable _condition;
+			bool _bStop = false;
+		};
 	}
 
 	void ResetTimingStats()
@@ -748,7 +832,7 @@ namespace Parsing
 	static bool IsDirectoryCacheReady();
 	static void WaitForDirectoryCache();
 
-	static void ParseCachedOARDirectory(const CachedOARDirectory& a_cachedOAR, ParseResults& a_outParseResults)
+	static void ParseCachedOARDirectory(const CachedOARDirectory& a_cachedOAR, ParseResults& a_outParseResults, WorkerPool& a_workerPool)
 	{
 		for (const auto& cachedMod : a_cachedOAR.modDirectories) {
 			if (!IsPathValid(cachedMod.path)) {
@@ -756,7 +840,7 @@ namespace Parsing
 			}
 
 			if (!cachedMod.subModDirectories.empty()) {
-				a_outParseResults.modParseResultFutures.emplace_back(std::async(std::launch::async, [cachedMod]() {
+				a_outParseResults.modParseResultFutures.emplace_back(a_workerPool.Enqueue([cachedMod]() {
 					return ParseModDirectory(cachedMod);
 				}));
 				continue;
@@ -767,13 +851,13 @@ namespace Parsing
 				continue;
 			}
 
-			a_outParseResults.modParseResultFutures.emplace_back(std::async(std::launch::async, [modEntry]() {
+			a_outParseResults.modParseResultFutures.emplace_back(a_workerPool.Enqueue([modEntry]() {
 				return ParseModDirectory(modEntry);
 			}));
 		}
 	}
 
-	static void ParseCachedLegacyDirectory(const CachedLegacyDirectory& a_cachedLegacy, ParseResults& a_outParseResults)
+	static void ParseCachedLegacyDirectory(const CachedLegacyDirectory& a_cachedLegacy, ParseResults& a_outParseResults, WorkerPool& a_workerPool)
 	{
 		if (!a_cachedLegacy.detailedEntries.empty()) {
 			for (const auto& detailedEntry : a_cachedLegacy.detailedEntries) {
@@ -783,7 +867,7 @@ namespace Parsing
 
 				if (detailedEntry.isCustomConditions) {
 					for (const auto& cachedSubMod : detailedEntry.subMods) {
-						a_outParseResults.legacyParseResultFutures.emplace_back(std::async(std::launch::async, [cachedSubMod]() {
+						a_outParseResults.legacyParseResultFutures.emplace_back(a_workerPool.Enqueue([cachedSubMod]() {
 							return ParseLegacyCustomConditionsDirectory(cachedSubMod);
 						}));
 					}
@@ -811,7 +895,7 @@ namespace Parsing
 			if (Utils::CompareStringsIgnoreCase(subEntry.path().stem().string(), "_CustomConditions"sv)) {
 				for (const auto& subSubEntry : std::filesystem::directory_iterator(subEntry)) {
 					if (Utils::IsDirectory(subSubEntry)) {
-						a_outParseResults.legacyParseResultFutures.emplace_back(std::async(std::launch::async, [subSubEntry]() {
+						a_outParseResults.legacyParseResultFutures.emplace_back(a_workerPool.Enqueue([subSubEntry]() {
 							return ParseLegacyCustomConditionsDirectory(subSubEntry);
 						}));
 					}
@@ -837,13 +921,17 @@ namespace Parsing
 			WaitForDirectoryCache();
 		}
 
+		const auto workerCount = std::clamp(Settings::uParsingWorkerCount, 1u, 32u);
+		logger::info("Using {} parsing worker(s).", workerCount);
+		WorkerPool workerPool(workerCount);
+
 		{
 			std::shared_lock lock(g_directoryCache.cacheLock);
 			for (const auto& cachedOAR : g_directoryCache.oarDirectories) {
-				ParseCachedOARDirectory(cachedOAR, a_outParseResults);
+				ParseCachedOARDirectory(cachedOAR, a_outParseResults, workerPool);
 			}
 			for (const auto& cachedLegacy : g_directoryCache.legacyDirectories) {
-				ParseCachedLegacyDirectory(cachedLegacy, a_outParseResults);
+				ParseCachedLegacyDirectory(cachedLegacy, a_outParseResults, workerPool);
 			}
 		}
 		return;
@@ -922,15 +1010,8 @@ namespace Parsing
 			}
 
 			if (bDeserializeSuccess) {
-				std::vector<std::future<SubModParseResult>> futures;
 				for (const auto& cachedSubMod : a_cachedMod.subModDirectories) {
-					futures.emplace_back(std::async(std::launch::async, [cachedSubMod]() {
-						return ParseModSubdirectory(cachedSubMod, false);
-					}));
-				}
-
-				for (auto& future : futures) {
-					auto subModParseResult = future.get();
+					auto subModParseResult = ParseModSubdirectory(cachedSubMod, false);
 					if (subModParseResult.bSuccess) {
 						result.subModParseResults.emplace_back(std::move(subModParseResult));
 					}
