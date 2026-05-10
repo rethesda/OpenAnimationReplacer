@@ -1,5 +1,6 @@
 #include "Hooks.h"
 #include "OpenAnimationReplacer.h"
+#include "Parsing.h"
 #include "Settings.h"
 #include "UI/UIManager.h"
 
@@ -14,6 +15,9 @@
 void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 {
 	switch (a_msg->type) {
+	case SKSE::MessagingInterface::kInputLoaded:
+		Parsing::StartDirectoryCaching();
+		break;
 	case SKSE::MessagingInterface::kDataLoaded:
 		OpenAnimationReplacer::GetSingleton().OnDataLoaded();
 		break;

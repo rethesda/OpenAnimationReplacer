@@ -4,7 +4,7 @@
 #define DIRECTINPUT_VERSION 0x0800
 #define IMGUI_DEFINE_MATH_OPERATORS
 
-#define USE_BS_LOCKS
+//#define USE_BS_LOCKS CommonlibSSE constantly spams relocations for each lock. Expensive.
 
 #pragma warning(push)
 #include <RE/Skyrim.h>

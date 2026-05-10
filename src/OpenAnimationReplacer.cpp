@@ -525,7 +525,7 @@ void OpenAnimationReplacer::CreateReplacerMods()
 
 	auto endOfParsingTime = std::chrono::high_resolution_clock::now();
 
-	if (parseResults.modParseResults.empty() && parseResults.legacyParseResults.empty()) {
+	if (parseResults.modParseResultFutures.empty() && parseResults.legacyParseResultFutures.empty()) {
 		logger::info("No replacer mods found.");
 		Parsing::LogTimingStats();
 		return;
@@ -533,7 +533,8 @@ void OpenAnimationReplacer::CreateReplacerMods()
 
 	// add all parsed mods
 	logger::info("Adding parsed replacer mods...");
-	for (auto& modParseResult : parseResults.modParseResults) {
+	for (auto& future : parseResults.modParseResultFutures) {
+		auto modParseResult = future.get();
 		AddModParseResult(modParseResult);
 	}
 	logger::info("Added parsed replacer mods.");
@@ -542,8 +543,8 @@ void OpenAnimationReplacer::CreateReplacerMods()
 
 	// add all parsed legacy mods
 	logger::info("Adding parsed legacy replacer mods...");
-	for (auto& subModParseResult : parseResults.legacyParseResults) {
-		if (subModParseResult.bSuccess) {
+	for (auto& future : parseResults.legacyParseResultFutures) {
+		if (auto subModParseResult = future.get(); subModParseResult.bSuccess) {
 			auto replacerMod = GetOrCreateLegacyReplacerMod();
 			AddSubModParseResult(replacerMod, subModParseResult);
 		}
