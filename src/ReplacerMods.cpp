@@ -701,7 +701,7 @@ void SubMod::Serialize(rapidjson::Document& a_doc, EditMode a_editMode) const
 	// write required project name
 	if (!_requiredProjectName.empty()) {
 		rapidjson::Value value(rapidjson::StringRef(_requiredProjectName.data(), _requiredProjectName.length()));
-		a_doc.AddMember("requiredProjectName", value, allocator);
+		a_doc.AddMember("requiredBehaviorProjectName", value, allocator);
 	}
 
 	// write ignore DONT_CONVERT_ANNOTATIONS_TO_TRIGGERS flag

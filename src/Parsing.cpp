@@ -19,7 +19,7 @@
 #include "Settings.h"
 
 #ifdef _WIN32
-constexpr ULONG ThreadIoPriority = 19;
+constexpr ULONG ThreadIoPriority = 22;
 constexpr ULONG LowThreadIoPriority = 0;
 constexpr ULONG HighThreadIoPriority = 3;
 using NtSetInformationThreadFn = NTSTATUS(NTAPI*)(HANDLE, ULONG, PVOID, ULONG);
@@ -535,7 +535,7 @@ namespace Parsing
 			}
 
 			// read required project name (optional)
-			if (auto it = doc.FindMember("requiredProjectName"); it != doc.MemberEnd() && it->value.IsString()) {
+			if (auto it = doc.FindMember("requiredBehaviorProjectName"); it != doc.MemberEnd() && it->value.IsString()) {
 				a_outParseResult.requiredProjectName = it->value.GetString();
 			}
 
