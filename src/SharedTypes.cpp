@@ -252,13 +252,13 @@ namespace Components
 				} else {
 					std::string currentEnumName = std::format("Unknown ({})", _floatValue);
 					if (getEnumMap) {
-						auto enumMap = getEnumMap();
+						const auto& enumMap = getEnumMap();
 						const auto it = enumMap.find(static_cast<int32_t>(_floatValue));
 						if (it != enumMap.end()) {
 							currentEnumName = it->second;
 						}
 					} else {
-						auto enumMap = getUnsignedEnumMap();
+						const auto& enumMap = getUnsignedEnumMap();
 						const auto it = enumMap.find(static_cast<uint32_t>(_floatValue));
 						if (it != enumMap.end()) {
 							currentEnumName = it->second;
@@ -293,12 +293,12 @@ namespace Components
 			{
 				if (HasEnumMap()) {
 					if (getEnumMap) {
-						auto enumMap = getEnumMap();
+						const auto& enumMap = getEnumMap();
 						if (const auto nameIt = enumMap.find(static_cast<int32_t>(_floatValue)); nameIt != enumMap.end()) {
 							return nameIt->second.data();
 						}
 					} else {
-						auto enumMap = getUnsignedEnumMap();
+						const auto& enumMap = getUnsignedEnumMap();
 						if (const auto nameIt = enumMap.find(static_cast<uint32_t>(_floatValue)); nameIt != enumMap.end()) {
 							return nameIt->second.data();
 						}
@@ -512,7 +512,7 @@ namespace Components
 	}
 
 	template <typename Key, typename T>
-	bool NumericValue::DisplayComboBox(std::map<Key, std::string_view> a_enumMap, T& a_value, float a_firstColumnWidthPercent)
+	bool NumericValue::DisplayComboBox(const std::map<Key, std::string_view>& a_enumMap, T& a_value, float a_firstColumnWidthPercent)
 	{
 		bool bEdited = false;
 

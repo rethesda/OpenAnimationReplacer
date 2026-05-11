@@ -334,7 +334,7 @@ namespace Functions
 	protected:
 		bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const override;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class ModifyGraphVariableFunction : public FunctionBase

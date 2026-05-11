@@ -489,7 +489,7 @@ namespace Functions
 		std::string slotName = "(Invalid)";
 		const auto slot = static_cast<uint32_t>(slotComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(slot); it != map.end()) {
 			slotName = it->second;
 		}
@@ -512,44 +512,48 @@ namespace Functions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> UnequipSlotFunction::GetEnumMap()
+	const std::map<int32_t, std::string_view>& UnequipSlotFunction::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
 
-		enumMap[0] = "Head"sv;
-		enumMap[1] = "Hair"sv;
-		enumMap[2] = "Body"sv;
-		enumMap[3] = "Hands"sv;
-		enumMap[4] = "Forearms"sv;
-		enumMap[5] = "Amulet"sv;
-		enumMap[6] = "Ring"sv;
-		enumMap[7] = "Feet"sv;
-		enumMap[8] = "Calves"sv;
-		enumMap[9] = "Shield"sv;
-		enumMap[10] = "Tail"sv;
-		enumMap[11] = "LongHair"sv;
-		enumMap[12] = "Circlet"sv;
-		enumMap[13] = "Ears"sv;
-		enumMap[14] = "ModMouth"sv;
-		enumMap[15] = "ModNeck"sv;
-		enumMap[16] = "ModChestPrimary"sv;
-		enumMap[17] = "ModBack"sv;
-		enumMap[18] = "ModMisc1"sv;
-		enumMap[19] = "ModPelvisPrimary"sv;
-		enumMap[20] = "DecapitateHead"sv;
-		enumMap[21] = "Decapitate"sv;
-		enumMap[22] = "ModPelvisSecondary"sv;
-		enumMap[23] = "ModLegRight"sv;
-		enumMap[24] = "ModLegLeft"sv;
-		enumMap[25] = "ModFaceJewelry"sv;
-		enumMap[26] = "ModChestSecondary"sv;
-		enumMap[27] = "ModShoulder"sv;
-		enumMap[28] = "ModArmLeft"sv;
-		enumMap[29] = "ModArmRight"sv;
-		enumMap[30] = "ModMisc2"sv;
-		enumMap[31] = "FX01"sv;
+			enumMap[0] = "Head"sv;
+			enumMap[1] = "Hair"sv;
+			enumMap[2] = "Body"sv;
+			enumMap[3] = "Hands"sv;
+			enumMap[4] = "Forearms"sv;
+			enumMap[5] = "Amulet"sv;
+			enumMap[6] = "Ring"sv;
+			enumMap[7] = "Feet"sv;
+			enumMap[8] = "Calves"sv;
+			enumMap[9] = "Shield"sv;
+			enumMap[10] = "Tail"sv;
+			enumMap[11] = "LongHair"sv;
+			enumMap[12] = "Circlet"sv;
+			enumMap[13] = "Ears"sv;
+			enumMap[14] = "ModMouth"sv;
+			enumMap[15] = "ModNeck"sv;
+			enumMap[16] = "ModChestPrimary"sv;
+			enumMap[17] = "ModBack"sv;
+			enumMap[18] = "ModMisc1"sv;
+			enumMap[19] = "ModPelvisPrimary"sv;
+			enumMap[20] = "DecapitateHead"sv;
+			enumMap[21] = "Decapitate"sv;
+			enumMap[22] = "ModPelvisSecondary"sv;
+			enumMap[23] = "ModLegRight"sv;
+			enumMap[24] = "ModLegLeft"sv;
+			enumMap[25] = "ModFaceJewelry"sv;
+			enumMap[26] = "ModChestSecondary"sv;
+			enumMap[27] = "ModShoulder"sv;
+			enumMap[28] = "ModArmLeft"sv;
+			enumMap[29] = "ModArmRight"sv;
+			enumMap[30] = "ModMisc2"sv;
+			enumMap[31] = "FX01"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString ModifyGraphVariableFunction::GetArgument() const

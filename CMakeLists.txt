@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(NAME "OpenAnimationReplacer" CACHE STRING "")
-set(VERSION 3.1.3 CACHE STRING "")
+set(VERSION 3.1.4 CACHE STRING "")
 
 project(
 	${NAME}

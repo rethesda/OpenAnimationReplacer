@@ -208,7 +208,7 @@ namespace Conditions
 		RE::TESForm* GetEquippedForm(RE::TESObjectREFR* a_refr) const;
 		int8_t GetEquippedType(RE::TESObjectREFR* a_refr) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class IsEquippedHasKeywordCondition : public ConditionBase
@@ -992,7 +992,7 @@ namespace Conditions
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	// ========== END OF LEGACY CONDITIONS ==========
@@ -1042,7 +1042,7 @@ namespace Conditions
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
-		//static std::map<int32_t, std::string_view> GetEnumMap();
+		//static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class SubmergeLevelCondition : public ConditionBase
@@ -1139,7 +1139,7 @@ namespace Conditions
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class ScaleCondition : public ConditionBase
@@ -1238,7 +1238,7 @@ namespace Conditions
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 		float GetMovementSpeed(RE::Actor* a_actor) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class CurrentMovementSpeedCondition : public ConditionBase
@@ -1376,7 +1376,7 @@ namespace Conditions
 		RE::ACTOR_COMBAT_STATE GetCombatState(RE::Actor* a_actor) const;
 		std::string_view GetCombatStateName(RE::ACTOR_COMBAT_STATE a_state) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class InventoryCountCondition : public ConditionBase
@@ -1477,7 +1477,7 @@ namespace Conditions
 		RE::PACKAGE_TYPE GetPackageType(RE::Actor* a_actor) const;
 		std::string_view GetPackageTypeName(RE::PACKAGE_TYPE a_type) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class IsOnMountCondition : public ConditionBase
@@ -1633,7 +1633,7 @@ namespace Conditions
 
 	protected:
 		std::string_view GetTargetTypeName(Utils::TargetType a_targetType) const;
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class HasTargetCondition : public TargetConditionBase
@@ -1702,7 +1702,7 @@ namespace Conditions
 		RE::TESNPC* GetActorBase(RE::TESObjectREFR* a_refr) const;
 
 		std::string_view GetRelationshipRankName(int32_t a_relationshipRank) const;
-		static std::map<int32_t, std::string_view> GetRelationshipRankEnumMap();
+		static const std::map<int32_t, std::string_view>& GetRelationshipRankEnumMap();
 	};
 
 	class EquippedObjectWeightCondition : public ConditionBase
@@ -1745,7 +1745,7 @@ namespace Conditions
 
 	protected:
 		std::string_view GetCastingSourceName(RE::MagicSystem::CastingSource a_source) const;
-		static std::map<int32_t, std::string_view> GetCastingSourceEnumMap();
+		static const std::map<int32_t, std::string_view>& GetCastingSourceEnumMap();
 	};
 
 	class CurrentCastingTypeCondition : public CastingSourceConditionBase
@@ -1772,7 +1772,7 @@ namespace Conditions
 		bool GetCastingType(RE::Actor* a_actor, RE::MagicSystem::CastingSource a_source, RE::MagicSystem::CastingType& a_outType) const;
 		std::string_view GetCastingTypeName(RE::MagicSystem::CastingType a_type) const;
 
-		static std::map<int32_t, std::string_view> GetCastingTypeEnumMap();
+		static const std::map<int32_t, std::string_view>& GetCastingTypeEnumMap();
 	};
 
 	class CurrentDeliveryTypeCondition : public CastingSourceConditionBase
@@ -1799,7 +1799,7 @@ namespace Conditions
 		bool GetDeliveryType(RE::Actor* a_actor, RE::MagicSystem::CastingSource a_source, RE::MagicSystem::Delivery& a_outDeliveryType) const;
 		std::string_view GetDeliveryTypeName(RE::MagicSystem::Delivery a_deliveryType) const;
 
-		static std::map<int32_t, std::string_view> GetDeliveryTypeEnumMap();
+		static const std::map<int32_t, std::string_view>& GetDeliveryTypeEnumMap();
 	};
 
 	class IsQuestStageDoneCondition : public ConditionBase
@@ -1847,7 +1847,7 @@ namespace Conditions
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 		std::string_view GetFlagName(int32_t a_index) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class InventoryCountHasKeywordCondition : public ConditionBase
@@ -2063,7 +2063,7 @@ namespace Conditions
 		RE::ATTACK_STATE_ENUM GetAttackState(RE::TESObjectREFR* a_refr) const;
 
 		std::string_view GetAttackStateName(RE::ATTACK_STATE_ENUM a_attackState) const;
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class IsMenuOpenCondition : public ConditionBase
@@ -2211,7 +2211,7 @@ namespace Conditions
 		RE::ACTOR_LIFE_STATE GetLifeState(RE::TESObjectREFR* a_refr) const;
 
 		std::string_view GetLifeStateName(RE::ACTOR_LIFE_STATE a_lifeState) const;
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class SitSleepStateCondition : public ConditionBase
@@ -2241,7 +2241,7 @@ namespace Conditions
 		RE::SIT_SLEEP_STATE GetSitSleepState(RE::TESObjectREFR* a_refr) const;
 
 		std::string_view GetSitSleepStateName(RE::SIT_SLEEP_STATE a_sitSleepState) const;
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class XORCondition : public ConditionBase
@@ -2358,7 +2358,7 @@ namespace Conditions
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 		std::string_view GetFlagName(int32_t a_index) const;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 
 		RE::NiPointer<RE::BGSAttackData> GetAttackData(RE::TESObjectREFR* a_refr) const;
 	};
@@ -2541,8 +2541,8 @@ namespace Conditions
 
 		RE::MATERIAL_ID GetRequiredMaterialID() const;
 
-		static std::vector<RE::MATERIAL_ID>& GetMaterialIDs();
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::vector<RE::MATERIAL_ID>& GetMaterialIDs();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class IsOverEncumberedCondition : public ConditionBase
@@ -2715,7 +2715,7 @@ namespace Conditions
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 
 	class InventoryWeightCondition : public ConditionBase
@@ -2798,6 +2798,6 @@ namespace Conditions
 	protected:
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
-		static std::map<int32_t, std::string_view> GetEnumMap();
+		static const std::map<int32_t, std::string_view>& GetEnumMap();
 	};
 }

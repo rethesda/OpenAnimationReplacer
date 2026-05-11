@@ -448,7 +448,7 @@ namespace Conditions
 
 	RE::BSString IsEquippedTypeCondition::GetCurrent(RE::TESObjectREFR* a_refr) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(GetEquippedType(a_refr)); it != map.end()) {
 			return it->second.data();
 		}
@@ -572,30 +572,34 @@ namespace Conditions
 		return currentType;
 	}
 
-	std::map<int32_t, std::string_view> IsEquippedTypeCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsEquippedTypeCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[-1] = "Other"sv;
-		enumMap[0] = "Unarmed"sv;
-		enumMap[1] = "Sword"sv;
-		enumMap[2] = "Dagger"sv;
-		enumMap[3] = "War Axe"sv;
-		enumMap[4] = "Mace"sv;
-		enumMap[5] = "Greatsword"sv;
-		enumMap[6] = "Battleaxe"sv;
-		enumMap[7] = "Bow"sv;
-		enumMap[8] = "Staff"sv;
-		enumMap[9] = "Crossbow"sv;
-		enumMap[10] = "Warhammer"sv;
-		enumMap[11] = "Shield"sv;
-		enumMap[12] = "Alteration Spell"sv;
-		enumMap[13] = "Illusion Spell"sv;
-		enumMap[14] = "Destruction Spell"sv;
-		enumMap[15] = "Conjuration Spell"sv;
-		enumMap[16] = "Restoration Spell"sv;
-		enumMap[17] = "Scroll"sv;
-		enumMap[18] = "Torch"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[-1] = "Other"sv;
+			enumMap[0] = "Unarmed"sv;
+			enumMap[1] = "Sword"sv;
+			enumMap[2] = "Dagger"sv;
+			enumMap[3] = "War Axe"sv;
+			enumMap[4] = "Mace"sv;
+			enumMap[5] = "Greatsword"sv;
+			enumMap[6] = "Battleaxe"sv;
+			enumMap[7] = "Bow"sv;
+			enumMap[8] = "Staff"sv;
+			enumMap[9] = "Crossbow"sv;
+			enumMap[10] = "Warhammer"sv;
+			enumMap[11] = "Shield"sv;
+			enumMap[12] = "Alteration Spell"sv;
+			enumMap[13] = "Illusion Spell"sv;
+			enumMap[14] = "Destruction Spell"sv;
+			enumMap[15] = "Conjuration Spell"sv;
+			enumMap[16] = "Restoration Spell"sv;
+			enumMap[17] = "Scroll"sv;
+			enumMap[18] = "Torch"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	void IsEquippedHasKeywordCondition::InitializeLegacy(const char* a_argument)
@@ -1570,15 +1574,19 @@ namespace Conditions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> IsMovementDirectionCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsMovementDirectionCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "None"sv;
-		enumMap[1] = "Forward"sv;
-		enumMap[2] = "Right"sv;
-		enumMap[3] = "Back"sv;
-		enumMap[4] = "Left"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "None"sv;
+			enumMap[1] = "Forward"sv;
+			enumMap[2] = "Right"sv;
+			enumMap[3] = "Back"sv;
+			enumMap[4] = "Left"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString IsEquippedShoutCondition::GetCurrent(RE::TESObjectREFR* a_refr) const
@@ -1736,7 +1744,7 @@ namespace Conditions
 		std::string slotName = "(Invalid)";
 		const auto slot = static_cast<uint32_t>(slotComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(slot); it != map.end()) {
 			slotName = it->second;
 		}
@@ -1758,44 +1766,48 @@ namespace Conditions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> IsWornInSlotHasKeywordCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsWornInSlotHasKeywordCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
 
-		enumMap[0] = "Head"sv;
-		enumMap[1] = "Hair"sv;
-		enumMap[2] = "Body"sv;
-		enumMap[3] = "Hands"sv;
-		enumMap[4] = "Forearms"sv;
-		enumMap[5] = "Amulet"sv;
-		enumMap[6] = "Ring"sv;
-		enumMap[7] = "Feet"sv;
-		enumMap[8] = "Calves"sv;
-		enumMap[9] = "Shield"sv;
-		enumMap[10] = "Tail"sv;
-		enumMap[11] = "LongHair"sv;
-		enumMap[12] = "Circlet"sv;
-		enumMap[13] = "Ears"sv;
-		enumMap[14] = "ModMouth"sv;
-		enumMap[15] = "ModNeck"sv;
-		enumMap[16] = "ModChestPrimary"sv;
-		enumMap[17] = "ModBack"sv;
-		enumMap[18] = "ModMisc1"sv;
-		enumMap[19] = "ModPelvisPrimary"sv;
-		enumMap[20] = "DecapitateHead"sv;
-		enumMap[21] = "Decapitate"sv;
-		enumMap[22] = "ModPelvisSecondary"sv;
-		enumMap[23] = "ModLegRight"sv;
-		enumMap[24] = "ModLegLeft"sv;
-		enumMap[25] = "ModFaceJewelry"sv;
-		enumMap[26] = "ModChestSecondary"sv;
-		enumMap[27] = "ModShoulder"sv;
-		enumMap[28] = "ModArmLeft"sv;
-		enumMap[29] = "ModArmRight"sv;
-		enumMap[30] = "ModMisc2"sv;
-		enumMap[31] = "FX01"sv;
+			enumMap[0] = "Head"sv;
+			enumMap[1] = "Hair"sv;
+			enumMap[2] = "Body"sv;
+			enumMap[3] = "Hands"sv;
+			enumMap[4] = "Forearms"sv;
+			enumMap[5] = "Amulet"sv;
+			enumMap[6] = "Ring"sv;
+			enumMap[7] = "Feet"sv;
+			enumMap[8] = "Calves"sv;
+			enumMap[9] = "Shield"sv;
+			enumMap[10] = "Tail"sv;
+			enumMap[11] = "LongHair"sv;
+			enumMap[12] = "Circlet"sv;
+			enumMap[13] = "Ears"sv;
+			enumMap[14] = "ModMouth"sv;
+			enumMap[15] = "ModNeck"sv;
+			enumMap[16] = "ModChestPrimary"sv;
+			enumMap[17] = "ModBack"sv;
+			enumMap[18] = "ModMisc1"sv;
+			enumMap[19] = "ModPelvisPrimary"sv;
+			enumMap[20] = "DecapitateHead"sv;
+			enumMap[21] = "Decapitate"sv;
+			enumMap[22] = "ModPelvisSecondary"sv;
+			enumMap[23] = "ModLegRight"sv;
+			enumMap[24] = "ModLegLeft"sv;
+			enumMap[25] = "ModFaceJewelry"sv;
+			enumMap[26] = "ModChestSecondary"sv;
+			enumMap[27] = "ModShoulder"sv;
+			enumMap[28] = "ModArmLeft"sv;
+			enumMap[29] = "ModArmRight"sv;
+			enumMap[30] = "ModMisc2"sv;
+			enumMap[31] = "FX01"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString ScaleCondition::GetArgument() const
@@ -1901,7 +1913,7 @@ namespace Conditions
 		std::string movementSpeedTypeName = "(Invalid)";
 		const auto movementType = static_cast<uint32_t>(movementTypeComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(movementType); it != map.end()) {
 			movementSpeedTypeName = it->second;
 		}
@@ -1951,14 +1963,18 @@ namespace Conditions
 		return 0.f;
 	}
 
-	std::map<int32_t, std::string_view> MovementSpeedCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& MovementSpeedCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Run"sv;
-		enumMap[1] = "Jog"sv;
-		enumMap[2] = "Fast walk"sv;
-		enumMap[3] = "Walk"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Run"sv;
+			enumMap[1] = "Jog"sv;
+			enumMap[2] = "Fast walk"sv;
+			enumMap[3] = "Walk"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString CurrentMovementSpeedCondition::GetArgument() const
@@ -2155,7 +2171,7 @@ namespace Conditions
 
 	std::string_view IsCombatStateCondition::GetCombatStateName(RE::ACTOR_COMBAT_STATE a_state) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_state)); it != map.end()) {
 			return it->second;
 		}
@@ -2163,14 +2179,18 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> IsCombatStateCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsCombatStateCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Not in combat"sv;
-		enumMap[1] = "In combat "sv;
-		enumMap[2] = "Searching"sv;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Not in combat"sv;
+			enumMap[1] = "In combat "sv;
+			enumMap[2] = "Searching"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString InventoryCountCondition::GetArgument() const
@@ -2332,7 +2352,7 @@ namespace Conditions
 
 	std::string_view CurrentPackageTypeCondition::GetPackageTypeName(RE::PACKAGE_TYPE a_type) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_type)); it != map.end()) {
 			return it->second;
 		}
@@ -2340,55 +2360,59 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CurrentPackageTypeCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& CurrentPackageTypeCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[-1] = "None"sv;
-		enumMap[0] = "Explore"sv;
-		enumMap[1] = "Follow"sv;
-		enumMap[2] = "Escort"sv;
-		enumMap[3] = "Eat"sv;
-		enumMap[4] = "Sleep"sv;
-		enumMap[5] = "Wander"sv;
-		enumMap[6] = "Travel"sv;
-		enumMap[7] = "Accompany"sv;
-		enumMap[8] = "UseItemAt"sv;
-		enumMap[9] = "Ambush"sv;
-		enumMap[10] = "FleeNotCombat"sv;
-		enumMap[11] = "CastMagic"sv;
-		enumMap[12] = "Sandbox"sv;
-		enumMap[13] = "Patrol"sv;
-		enumMap[14] = "Guard"sv;
-		enumMap[15] = "Dialogue"sv;
-		enumMap[16] = "UseWeapon"sv;
-		enumMap[17] = "Find"sv;
-		enumMap[18] = "Package"sv;
-		enumMap[19] = "PackageTemplate"sv;
-		enumMap[20] = "Activate"sv;
-		enumMap[21] = "Alarm"sv;
-		enumMap[22] = "Flee"sv;
-		enumMap[23] = "Trespass"sv;
-		enumMap[24] = "Spectator"sv;
-		enumMap[25] = "ReactToDead"sv;
-		enumMap[26] = "GetUpFromChairBed"sv;
-		enumMap[27] = "DoNothing"sv;
-		enumMap[28] = "InGameDialogue"sv;
-		enumMap[29] = "Surface"sv;
-		enumMap[30] = "SearchForAttacker"sv;
-		enumMap[31] = "AvoidPlayer"sv;
-		enumMap[32] = "ReactToDestroyedObject"sv;
-		enumMap[33] = "ReactToGrenadeOrMine"sv;
-		enumMap[34] = "StealWarning"sv;
-		enumMap[35] = "PickPocketWarning"sv;
-		enumMap[36] = "MovementBlocked"sv;
-		enumMap[37] = "VampireFeed"sv;
-		enumMap[38] = "Cannibal"sv;
-		enumMap[39] = "Landing"sv;
-		enumMap[40] = "Unused"sv;
-		enumMap[41] = "MountActor"sv;
-		enumMap[42] = "DismountActor"sv;
-		enumMap[43] = "ClearMountPosition"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[-1] = "None"sv;
+			enumMap[0] = "Explore"sv;
+			enumMap[1] = "Follow"sv;
+			enumMap[2] = "Escort"sv;
+			enumMap[3] = "Eat"sv;
+			enumMap[4] = "Sleep"sv;
+			enumMap[5] = "Wander"sv;
+			enumMap[6] = "Travel"sv;
+			enumMap[7] = "Accompany"sv;
+			enumMap[8] = "UseItemAt"sv;
+			enumMap[9] = "Ambush"sv;
+			enumMap[10] = "FleeNotCombat"sv;
+			enumMap[11] = "CastMagic"sv;
+			enumMap[12] = "Sandbox"sv;
+			enumMap[13] = "Patrol"sv;
+			enumMap[14] = "Guard"sv;
+			enumMap[15] = "Dialogue"sv;
+			enumMap[16] = "UseWeapon"sv;
+			enumMap[17] = "Find"sv;
+			enumMap[18] = "Package"sv;
+			enumMap[19] = "PackageTemplate"sv;
+			enumMap[20] = "Activate"sv;
+			enumMap[21] = "Alarm"sv;
+			enumMap[22] = "Flee"sv;
+			enumMap[23] = "Trespass"sv;
+			enumMap[24] = "Spectator"sv;
+			enumMap[25] = "ReactToDead"sv;
+			enumMap[26] = "GetUpFromChairBed"sv;
+			enumMap[27] = "DoNothing"sv;
+			enumMap[28] = "InGameDialogue"sv;
+			enumMap[29] = "Surface"sv;
+			enumMap[30] = "SearchForAttacker"sv;
+			enumMap[31] = "AvoidPlayer"sv;
+			enumMap[32] = "ReactToDestroyedObject"sv;
+			enumMap[33] = "ReactToGrenadeOrMine"sv;
+			enumMap[34] = "StealWarning"sv;
+			enumMap[35] = "PickPocketWarning"sv;
+			enumMap[36] = "MovementBlocked"sv;
+			enumMap[37] = "VampireFeed"sv;
+			enumMap[38] = "Cannibal"sv;
+			enumMap[39] = "Landing"sv;
+			enumMap[40] = "Unused"sv;
+			enumMap[41] = "MountActor"sv;
+			enumMap[42] = "DismountActor"sv;
+			enumMap[43] = "ClearMountPosition"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	bool IsOnMountCondition::EvaluateImpl(RE::TESObjectREFR* a_refr, [[maybe_unused]] RE::hkbClipGenerator* a_clipGenerator, [[maybe_unused]] void* a_parentSubMod) const
@@ -2578,7 +2602,7 @@ namespace Conditions
 
 	std::string_view TargetConditionBase::GetTargetTypeName(Utils::TargetType a_targetType) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_targetType)); it != map.end()) {
 			return it->second;
 		}
@@ -2586,17 +2610,21 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> TargetConditionBase::GetEnumMap()
+	const std::map<int32_t, std::string_view>& TargetConditionBase::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Target"sv;
-		enumMap[1] = "Combat target"sv;
-		enumMap[2] = "Dialogue target"sv;
-		enumMap[3] = "Follow target"sv;
-		enumMap[4] = "Headtrack target"sv;
-		enumMap[5] = "Package target"sv;
-		enumMap[6] = "Any target"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Target"sv;
+			enumMap[1] = "Combat target"sv;
+			enumMap[2] = "Dialogue target"sv;
+			enumMap[3] = "Follow target"sv;
+			enumMap[4] = "Headtrack target"sv;
+			enumMap[5] = "Package target"sv;
+			enumMap[6] = "Any target"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString HasTargetCondition::GetArgument() const
@@ -2743,7 +2771,7 @@ namespace Conditions
 
 	std::string_view CurrentTargetRelationshipCondition::GetRelationshipRankName(int32_t a_relationshipRank) const
 	{
-		static auto map = GetRelationshipRankEnumMap();
+		const auto& map = GetRelationshipRankEnumMap();
 		if (const auto it = map.find(a_relationshipRank); it != map.end()) {
 			return it->second;
 		}
@@ -2751,19 +2779,23 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CurrentTargetRelationshipCondition::GetRelationshipRankEnumMap()
+	const std::map<int32_t, std::string_view>& CurrentTargetRelationshipCondition::GetRelationshipRankEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[-4] = "Archnemesis"sv;
-		enumMap[-3] = "Enemy"sv;
-		enumMap[-2] = "Foe"sv;
-		enumMap[-1] = "Rival"sv;
-		enumMap[0] = "Acquaintance"sv;
-		enumMap[1] = "Friend"sv;
-		enumMap[2] = "Confidant"sv;
-		enumMap[3] = "Ally"sv;
-		enumMap[4] = "Lover"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[-4] = "Archnemesis"sv;
+			enumMap[-3] = "Enemy"sv;
+			enumMap[-2] = "Foe"sv;
+			enumMap[-1] = "Rival"sv;
+			enumMap[0] = "Acquaintance"sv;
+			enumMap[1] = "Friend"sv;
+			enumMap[2] = "Confidant"sv;
+			enumMap[3] = "Ally"sv;
+			enumMap[4] = "Lover"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString EquippedObjectWeightCondition::GetArgument() const
@@ -2816,7 +2848,7 @@ namespace Conditions
 
 	std::string_view CastingSourceConditionBase::GetCastingSourceName(RE::MagicSystem::CastingSource a_source) const
 	{
-		static auto map = GetCastingSourceEnumMap();
+		const auto& map = GetCastingSourceEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_source)); it != map.end()) {
 			return it->second;
 		}
@@ -2824,14 +2856,18 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CastingSourceConditionBase::GetCastingSourceEnumMap()
+	const std::map<int32_t, std::string_view>& CastingSourceConditionBase::GetCastingSourceEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Left hand"sv;
-		enumMap[1] = "Right hand"sv;
-		enumMap[2] = "Other"sv;
-		enumMap[3] = "Instant"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Left hand"sv;
+			enumMap[1] = "Right hand"sv;
+			enumMap[2] = "Other"sv;
+			enumMap[3] = "Instant"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	void CurrentCastingTypeCondition::PostInitialize()
@@ -2905,7 +2941,7 @@ namespace Conditions
 
 	std::string_view CurrentCastingTypeCondition::GetCastingTypeName(RE::MagicSystem::CastingType a_type) const
 	{
-		static auto map = GetCastingTypeEnumMap();
+		const auto& map = GetCastingTypeEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_type)); it != map.end()) {
 			return it->second;
 		}
@@ -2913,14 +2949,18 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CurrentCastingTypeCondition::GetCastingTypeEnumMap()
+	const std::map<int32_t, std::string_view>& CurrentCastingTypeCondition::GetCastingTypeEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Constant effect"sv;
-		enumMap[1] = "Fire and forget"sv;
-		enumMap[2] = "Concentration"sv;
-		enumMap[3] = "Scroll"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Constant effect"sv;
+			enumMap[1] = "Fire and forget"sv;
+			enumMap[2] = "Concentration"sv;
+			enumMap[3] = "Scroll"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	void CurrentDeliveryTypeCondition::PostInitialize()
@@ -2994,7 +3034,7 @@ namespace Conditions
 
 	std::string_view CurrentDeliveryTypeCondition::GetDeliveryTypeName(RE::MagicSystem::Delivery a_deliveryType) const
 	{
-		static auto map = GetDeliveryTypeEnumMap();
+		const auto& map = GetDeliveryTypeEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_deliveryType)); it != map.end()) {
 			return it->second;
 		}
@@ -3002,15 +3042,19 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CurrentDeliveryTypeCondition::GetDeliveryTypeEnumMap()
+	const std::map<int32_t, std::string_view>& CurrentDeliveryTypeCondition::GetDeliveryTypeEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Self"sv;
-		enumMap[1] = "Touch"sv;
-		enumMap[2] = "Aimed"sv;
-		enumMap[3] = "Target actor"sv;
-		enumMap[4] = "Target location"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Self"sv;
+			enumMap[1] = "Touch"sv;
+			enumMap[2] = "Aimed"sv;
+			enumMap[3] = "Target actor"sv;
+			enumMap[4] = "Target location"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString IsQuestStageDoneCondition::GetArgument() const
@@ -3068,7 +3112,7 @@ namespace Conditions
 
 	std::string_view CurrentWeatherHasFlagCondition::GetFlagName(int32_t a_index) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(a_index); it != map.end()) {
 			return it->second;
 		}
@@ -3076,14 +3120,18 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> CurrentWeatherHasFlagCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& CurrentWeatherHasFlagCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Pleasant"sv;
-		enumMap[1] = "Cloudy"sv;
-		enumMap[2] = "Rainy"sv;
-		enumMap[3] = "Snow"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Pleasant"sv;
+			enumMap[1] = "Cloudy"sv;
+			enumMap[2] = "Rainy"sv;
+			enumMap[3] = "Snow"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString InventoryCountHasKeywordCondition::GetArgument() const
@@ -3384,7 +3432,7 @@ namespace Conditions
 		std::string attackStateName = "(Invalid)";
 		const auto attackState = static_cast<uint32_t>(attackStateComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(attackState); it != map.end()) {
 			attackStateName = it->second;
 		}
@@ -3425,7 +3473,7 @@ namespace Conditions
 
 	std::string_view AttackStateCondition::GetAttackStateName(RE::ATTACK_STATE_ENUM a_attackState) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_attackState)); it != map.end()) {
 			return it->second;
 		}
@@ -3433,29 +3481,33 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> AttackStateCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& AttackStateCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "None"sv;
-		enumMap[1] = "Draw"sv;
-		enumMap[2] = "Swing"sv;
-		enumMap[3] = "Hit"sv;
-		enumMap[4] = "Next attack"sv;
-		enumMap[5] = "Follow through"sv;
-		enumMap[6] = "Bash"sv;
-		enumMap[7] = "[Unused?]"sv;
-		enumMap[8] = "Bow draw"sv;
-		enumMap[9] = "Bow attached"sv;
-		enumMap[10] = "Bow drawn"sv;
-		enumMap[11] = "Bow releasing"sv;
-		enumMap[12] = "Bow released"sv;
-		enumMap[13] = "Bow next attack"sv;
-		enumMap[14] = "Bow follow through"sv;
-		enumMap[15] = "Fire"sv;
-		enumMap[16] = "Firing"sv;
-		enumMap[17] = "Fired"sv;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "None"sv;
+			enumMap[1] = "Draw"sv;
+			enumMap[2] = "Swing"sv;
+			enumMap[3] = "Hit"sv;
+			enumMap[4] = "Next attack"sv;
+			enumMap[5] = "Follow through"sv;
+			enumMap[6] = "Bash"sv;
+			enumMap[7] = "[Unused?]"sv;
+			enumMap[8] = "Bow draw"sv;
+			enumMap[9] = "Bow attached"sv;
+			enumMap[10] = "Bow drawn"sv;
+			enumMap[11] = "Bow releasing"sv;
+			enumMap[12] = "Bow released"sv;
+			enumMap[13] = "Bow next attack"sv;
+			enumMap[14] = "Bow follow through"sv;
+			enumMap[15] = "Fire"sv;
+			enumMap[16] = "Firing"sv;
+			enumMap[17] = "Fired"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString IsMenuOpenCondition::GetCurrent([[maybe_unused]] RE::TESObjectREFR* a_refr) const
@@ -3598,7 +3650,7 @@ namespace Conditions
 		std::string lifeStateName = "(Invalid)";
 		const auto lifeState = static_cast<uint32_t>(lifeStateComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(lifeState); it != map.end()) {
 			lifeStateName = it->second;
 		}
@@ -3639,7 +3691,7 @@ namespace Conditions
 
 	std::string_view LifeStateCondition::GetLifeStateName(RE::ACTOR_LIFE_STATE a_lifeState) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_lifeState)); it != map.end()) {
 			return it->second;
 		}
@@ -3647,20 +3699,24 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> LifeStateCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& LifeStateCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Alive"sv;
-		enumMap[1] = "Dying"sv;
-		enumMap[2] = "Dead"sv;
-		enumMap[3] = "Unconscious"sv;
-		enumMap[4] = "Reanimate"sv;
-		enumMap[5] = "Recycle"sv;
-		enumMap[6] = "Restrained"sv;
-		enumMap[7] = "Essential down"sv;
-		enumMap[8] = "Bleedout"sv;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Alive"sv;
+			enumMap[1] = "Dying"sv;
+			enumMap[2] = "Dead"sv;
+			enumMap[3] = "Unconscious"sv;
+			enumMap[4] = "Reanimate"sv;
+			enumMap[5] = "Recycle"sv;
+			enumMap[6] = "Restrained"sv;
+			enumMap[7] = "Essential down"sv;
+			enumMap[8] = "Bleedout"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	void SitSleepStateCondition::PostInitialize()
@@ -3676,7 +3732,7 @@ namespace Conditions
 		std::string lifeStateName = "(Invalid)";
 		const auto lifeState = static_cast<uint32_t>(sitSleepStateComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(lifeState); it != map.end()) {
 			lifeStateName = it->second;
 		}
@@ -3717,7 +3773,7 @@ namespace Conditions
 
 	std::string_view SitSleepStateCondition::GetSitSleepStateName(RE::SIT_SLEEP_STATE a_sitSleepState) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(static_cast<int32_t>(a_sitSleepState)); it != map.end()) {
 			return it->second;
 		}
@@ -3725,20 +3781,24 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> SitSleepStateCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& SitSleepStateCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Normal"sv;
-		enumMap[1] = "Wants to sit"sv;
-		enumMap[2] = "Waiting for sit anim"sv;
-		enumMap[3] = "Sitting/Riding mount"sv;
-		enumMap[4] = "Wants to stand"sv;
-		enumMap[5] = "Wants to sleep"sv;
-		enumMap[6] = "Waiting for sleep anim"sv;
-		enumMap[7] = "Sleeping"sv;
-		enumMap[8] = "Wants to wake"sv;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Normal"sv;
+			enumMap[1] = "Wants to sit"sv;
+			enumMap[2] = "Waiting for sit anim"sv;
+			enumMap[3] = "Sitting/Riding mount"sv;
+			enumMap[4] = "Wants to stand"sv;
+			enumMap[5] = "Wants to sleep"sv;
+			enumMap[6] = "Waiting for sleep anim"sv;
+			enumMap[7] = "Sleeping"sv;
+			enumMap[8] = "Wants to wake"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	bool XORCondition::EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const
@@ -3869,7 +3929,7 @@ namespace Conditions
 
 	std::string_view IsAttackTypeFlagCondition::GetFlagName(int32_t a_index) const
 	{
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(a_index); it != map.end()) {
 			return it->second;
 		}
@@ -3877,18 +3937,22 @@ namespace Conditions
 		return "(Invalid)"sv;
 	}
 
-	std::map<int32_t, std::string_view> IsAttackTypeFlagCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsAttackTypeFlagCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "IgnoreWeapon"sv;
-		enumMap[1] = "BashAttack"sv;
-		enumMap[2] = "PowerAttack"sv;
-		enumMap[3] = "ChargeAttack"sv;
-		enumMap[4] = "RotatingAttack"sv;
-		enumMap[5] = "ContinuousAttack"sv;
-		enumMap[6] = "OverrideData"sv;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "IgnoreWeapon"sv;
+			enumMap[1] = "BashAttack"sv;
+			enumMap[2] = "PowerAttack"sv;
+			enumMap[3] = "ChargeAttack"sv;
+			enumMap[4] = "RotatingAttack"sv;
+			enumMap[5] = "ContinuousAttack"sv;
+			enumMap[6] = "OverrideData"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::NiPointer<RE::BGSAttackData> IsAttackTypeFlagCondition::GetAttackData(RE::TESObjectREFR* a_refr) const
@@ -4193,108 +4257,107 @@ namespace Conditions
 		return materialIDs[currentValue];
 	}
 
-	std::vector<RE::MATERIAL_ID>& SurfaceMaterialCondition::GetMaterialIDs()
+	const std::vector<RE::MATERIAL_ID>& SurfaceMaterialCondition::GetMaterialIDs()
 	{
-		static bool bInitialized = false;
-		static std::vector<RE::MATERIAL_ID> materialIDs;
+		static const std::vector<RE::MATERIAL_ID> materialIDs = [] {
+			std::vector<RE::MATERIAL_ID> ids{
+				RE::MATERIAL_ID::kNone,
+				RE::MATERIAL_ID::kStoneBroken,
+				RE::MATERIAL_ID::kBlockBlade1Hand,
+				RE::MATERIAL_ID::kMeat,
+				RE::MATERIAL_ID::kCarriageWheel,
+				RE::MATERIAL_ID::kMetalLight,
+				RE::MATERIAL_ID::kWoodLight,
+				RE::MATERIAL_ID::kSnow,
+				RE::MATERIAL_ID::kGravel,
+				RE::MATERIAL_ID::kChainMetal,
+				RE::MATERIAL_ID::kBottle,
+				RE::MATERIAL_ID::kWood,
+				RE::MATERIAL_ID::kAsh,
+				RE::MATERIAL_ID::kSkin,
+				RE::MATERIAL_ID::kBlockBlunt,
+				RE::MATERIAL_ID::kDLC1DeerSkin,
+				RE::MATERIAL_ID::kInsect,
+				RE::MATERIAL_ID::kBarrel,
+				RE::MATERIAL_ID::kCeramicMedium,
+				RE::MATERIAL_ID::kBasket,
+				RE::MATERIAL_ID::kIce,
+				RE::MATERIAL_ID::kGlassStairs,
+				RE::MATERIAL_ID::kStoneStairs,
+				RE::MATERIAL_ID::kWater,
+				RE::MATERIAL_ID::kDraugrSkeleton,
+				RE::MATERIAL_ID::kBlade1Hand,
+				RE::MATERIAL_ID::kBook,
+				RE::MATERIAL_ID::kCarpet,
+				RE::MATERIAL_ID::kMetalSolid,
+				RE::MATERIAL_ID::kAxe1Hand,
+				RE::MATERIAL_ID::kBlockBlade2Hand,
+				RE::MATERIAL_ID::kOrganicLarge,
+				RE::MATERIAL_ID::kAmulet,
+				RE::MATERIAL_ID::kWoodStairs,
+				RE::MATERIAL_ID::kMud,
+				RE::MATERIAL_ID::kBoulderSmall,
+				RE::MATERIAL_ID::kSnowStairs,
+				RE::MATERIAL_ID::kStoneHeavy,
+				RE::MATERIAL_ID::kDragonSkeleton,
+				RE::MATERIAL_ID::kTrap,
+				RE::MATERIAL_ID::kBowsStaves,
+				RE::MATERIAL_ID::kAlduin,
+				RE::MATERIAL_ID::kBlockBowsStaves,
+				RE::MATERIAL_ID::kWoodAsStairs,
+				RE::MATERIAL_ID::kSteelGreatSword,
+				RE::MATERIAL_ID::kGrass,
+				RE::MATERIAL_ID::kBoulderLarge,
+				RE::MATERIAL_ID::kStoneAsStairs,
+				RE::MATERIAL_ID::kBlade2Hand,
+				RE::MATERIAL_ID::kBottleSmall,
+				RE::MATERIAL_ID::kBoneActor,
+				RE::MATERIAL_ID::kSand,
+				RE::MATERIAL_ID::kMetalHeavy,
+				RE::MATERIAL_ID::kDLC1SabreCatPelt,
+				RE::MATERIAL_ID::kIceForm,
+				RE::MATERIAL_ID::kDragon,
+				RE::MATERIAL_ID::kBlade1HandSmall,
+				RE::MATERIAL_ID::kSkinSmall,
+				RE::MATERIAL_ID::kPotsPans,
+				RE::MATERIAL_ID::kSkinSkeleton,
+				RE::MATERIAL_ID::kBlunt1Hand,
+				RE::MATERIAL_ID::kStoneStairsBroken,
+				RE::MATERIAL_ID::kSkinLarge,
+				RE::MATERIAL_ID::kOrganic,
+				RE::MATERIAL_ID::kBone,
+				RE::MATERIAL_ID::kWoodHeavy,
+				RE::MATERIAL_ID::kChain,
+				RE::MATERIAL_ID::kDirt,
+				RE::MATERIAL_ID::kGhost,
+				RE::MATERIAL_ID::kSkinMetalLarge,
+				RE::MATERIAL_ID::kBlockAxe,
+				RE::MATERIAL_ID::kArmorLight,
+				RE::MATERIAL_ID::kShieldLight,
+				RE::MATERIAL_ID::kCoin,
+				RE::MATERIAL_ID::kBlockBlunt2Hand,
+				RE::MATERIAL_ID::kShieldHeavy,
+				RE::MATERIAL_ID::kArmorHeavy,
+				RE::MATERIAL_ID::kArrow,
+				RE::MATERIAL_ID::kGlass,
+				RE::MATERIAL_ID::kStone,
+				RE::MATERIAL_ID::kWaterPuddle,
+				RE::MATERIAL_ID::kCloth,
+				RE::MATERIAL_ID::kSkinMetalSmall,
+				RE::MATERIAL_ID::kWard,
+				RE::MATERIAL_ID::kWeb,
+				RE::MATERIAL_ID::kTrailerSteelSword,
+				RE::MATERIAL_ID::kBlunt2Hand,
+				RE::MATERIAL_ID::kDLC1SwingingBridge,
+				RE::MATERIAL_ID::kBoulderMedium
+			};
 
-		if (!bInitialized) {
-			materialIDs.push_back(RE::MATERIAL_ID::kNone);
-			materialIDs.push_back(RE::MATERIAL_ID::kStoneBroken);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockBlade1Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kMeat);
-			materialIDs.push_back(RE::MATERIAL_ID::kCarriageWheel);
-			materialIDs.push_back(RE::MATERIAL_ID::kMetalLight);
-			materialIDs.push_back(RE::MATERIAL_ID::kWoodLight);
-			materialIDs.push_back(RE::MATERIAL_ID::kSnow);
-			materialIDs.push_back(RE::MATERIAL_ID::kGravel);
-			materialIDs.push_back(RE::MATERIAL_ID::kChainMetal);
-			materialIDs.push_back(RE::MATERIAL_ID::kBottle);
-			materialIDs.push_back(RE::MATERIAL_ID::kWood);
-			materialIDs.push_back(RE::MATERIAL_ID::kAsh);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkin);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockBlunt);
-			materialIDs.push_back(RE::MATERIAL_ID::kDLC1DeerSkin);
-			materialIDs.push_back(RE::MATERIAL_ID::kInsect);
-			materialIDs.push_back(RE::MATERIAL_ID::kBarrel);
-			materialIDs.push_back(RE::MATERIAL_ID::kCeramicMedium);
-			materialIDs.push_back(RE::MATERIAL_ID::kBasket);
-			materialIDs.push_back(RE::MATERIAL_ID::kIce);
-			materialIDs.push_back(RE::MATERIAL_ID::kGlassStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kStoneStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kWater);
-			materialIDs.push_back(RE::MATERIAL_ID::kDraugrSkeleton);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlade1Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kBook);
-			materialIDs.push_back(RE::MATERIAL_ID::kCarpet);
-			materialIDs.push_back(RE::MATERIAL_ID::kMetalSolid);
-			materialIDs.push_back(RE::MATERIAL_ID::kAxe1Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockBlade2Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kOrganicLarge);
-			materialIDs.push_back(RE::MATERIAL_ID::kAmulet);
-			materialIDs.push_back(RE::MATERIAL_ID::kWoodStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kMud);
-			materialIDs.push_back(RE::MATERIAL_ID::kBoulderSmall);
-			materialIDs.push_back(RE::MATERIAL_ID::kSnowStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kStoneHeavy);
-			materialIDs.push_back(RE::MATERIAL_ID::kDragonSkeleton);
-			materialIDs.push_back(RE::MATERIAL_ID::kTrap);
-			materialIDs.push_back(RE::MATERIAL_ID::kBowsStaves);
-			materialIDs.push_back(RE::MATERIAL_ID::kAlduin);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockBowsStaves);
-			materialIDs.push_back(RE::MATERIAL_ID::kWoodAsStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kSteelGreatSword);
-			materialIDs.push_back(RE::MATERIAL_ID::kGrass);
-			materialIDs.push_back(RE::MATERIAL_ID::kBoulderLarge);
-			materialIDs.push_back(RE::MATERIAL_ID::kStoneAsStairs);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlade2Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kBottleSmall);
-			materialIDs.push_back(RE::MATERIAL_ID::kBoneActor);
-			materialIDs.push_back(RE::MATERIAL_ID::kSand);
-			materialIDs.push_back(RE::MATERIAL_ID::kMetalHeavy);
-			materialIDs.push_back(RE::MATERIAL_ID::kDLC1SabreCatPelt);
-			materialIDs.push_back(RE::MATERIAL_ID::kIceForm);
-			materialIDs.push_back(RE::MATERIAL_ID::kDragon);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlade1HandSmall);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkinSmall);
-			materialIDs.push_back(RE::MATERIAL_ID::kPotsPans);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkinSkeleton);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlunt1Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kStoneStairsBroken);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkinLarge);
-			materialIDs.push_back(RE::MATERIAL_ID::kOrganic);
-			materialIDs.push_back(RE::MATERIAL_ID::kBone);
-			materialIDs.push_back(RE::MATERIAL_ID::kWoodHeavy);
-			materialIDs.push_back(RE::MATERIAL_ID::kChain);
-			materialIDs.push_back(RE::MATERIAL_ID::kDirt);
-			materialIDs.push_back(RE::MATERIAL_ID::kGhost);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkinMetalLarge);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockAxe);
-			materialIDs.push_back(RE::MATERIAL_ID::kArmorLight);
-			materialIDs.push_back(RE::MATERIAL_ID::kShieldLight);
-			materialIDs.push_back(RE::MATERIAL_ID::kCoin);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlockBlunt2Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kShieldHeavy);
-			materialIDs.push_back(RE::MATERIAL_ID::kArmorHeavy);
-			materialIDs.push_back(RE::MATERIAL_ID::kArrow);
-			materialIDs.push_back(RE::MATERIAL_ID::kGlass);
-			materialIDs.push_back(RE::MATERIAL_ID::kStone);
-			materialIDs.push_back(RE::MATERIAL_ID::kWaterPuddle);
-			materialIDs.push_back(RE::MATERIAL_ID::kCloth);
-			materialIDs.push_back(RE::MATERIAL_ID::kSkinMetalSmall);
-			materialIDs.push_back(RE::MATERIAL_ID::kWard);
-			materialIDs.push_back(RE::MATERIAL_ID::kWeb);
-			materialIDs.push_back(RE::MATERIAL_ID::kTrailerSteelSword);
-			materialIDs.push_back(RE::MATERIAL_ID::kBlunt2Hand);
-			materialIDs.push_back(RE::MATERIAL_ID::kDLC1SwingingBridge);
-			materialIDs.push_back(RE::MATERIAL_ID::kBoulderMedium);
-
-			std::ranges::sort(materialIDs, [](RE::MATERIAL_ID a_lhs, RE::MATERIAL_ID a_rhs) {
+			std::ranges::sort(ids, [](RE::MATERIAL_ID a_lhs, RE::MATERIAL_ID a_rhs) {
 				return RE::MaterialIDToString(a_lhs) < RE::MaterialIDToString(a_rhs);
 			});
 
-			bInitialized = true;
-		}
+			return ids;
+		}();
 
 		return materialIDs;
 	}
@@ -4313,13 +4376,13 @@ namespace Conditions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> SurfaceMaterialCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& SurfaceMaterialCondition::GetEnumMap()
 	{
 		static bool bInitialized = false;
 		static std::map<int32_t, std::string_view> enumMap;
 
 		if (!bInitialized) {
-			std::vector<RE::MATERIAL_ID>& materialIDs = GetMaterialIDs();
+			const std::vector<RE::MATERIAL_ID>& materialIDs = GetMaterialIDs();
 			for (int32_t i = 0; i < materialIDs.size(); ++i) {
 				enumMap[i] = RE::MaterialIDToString(materialIDs[i]);
 			}
@@ -4629,7 +4692,7 @@ namespace Conditions
 		std::string slotName = "(Invalid)";
 		const auto slot = static_cast<uint32_t>(slotComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(slot); it != map.end()) {
 			slotName = it->second;
 		}
@@ -4649,44 +4712,48 @@ namespace Conditions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> IsWornInSlotCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& IsWornInSlotCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
 
-		enumMap[0] = "Head"sv;
-		enumMap[1] = "Hair"sv;
-		enumMap[2] = "Body"sv;
-		enumMap[3] = "Hands"sv;
-		enumMap[4] = "Forearms"sv;
-		enumMap[5] = "Amulet"sv;
-		enumMap[6] = "Ring"sv;
-		enumMap[7] = "Feet"sv;
-		enumMap[8] = "Calves"sv;
-		enumMap[9] = "Shield"sv;
-		enumMap[10] = "Tail"sv;
-		enumMap[11] = "LongHair"sv;
-		enumMap[12] = "Circlet"sv;
-		enumMap[13] = "Ears"sv;
-		enumMap[14] = "ModMouth"sv;
-		enumMap[15] = "ModNeck"sv;
-		enumMap[16] = "ModChestPrimary"sv;
-		enumMap[17] = "ModBack"sv;
-		enumMap[18] = "ModMisc1"sv;
-		enumMap[19] = "ModPelvisPrimary"sv;
-		enumMap[20] = "DecapitateHead"sv;
-		enumMap[21] = "Decapitate"sv;
-		enumMap[22] = "ModPelvisSecondary"sv;
-		enumMap[23] = "ModLegRight"sv;
-		enumMap[24] = "ModLegLeft"sv;
-		enumMap[25] = "ModFaceJewelry"sv;
-		enumMap[26] = "ModChestSecondary"sv;
-		enumMap[27] = "ModShoulder"sv;
-		enumMap[28] = "ModArmLeft"sv;
-		enumMap[29] = "ModArmRight"sv;
-		enumMap[30] = "ModMisc2"sv;
-		enumMap[31] = "FX01"sv;
+			enumMap[0] = "Head"sv;
+			enumMap[1] = "Hair"sv;
+			enumMap[2] = "Body"sv;
+			enumMap[3] = "Hands"sv;
+			enumMap[4] = "Forearms"sv;
+			enumMap[5] = "Amulet"sv;
+			enumMap[6] = "Ring"sv;
+			enumMap[7] = "Feet"sv;
+			enumMap[8] = "Calves"sv;
+			enumMap[9] = "Shield"sv;
+			enumMap[10] = "Tail"sv;
+			enumMap[11] = "LongHair"sv;
+			enumMap[12] = "Circlet"sv;
+			enumMap[13] = "Ears"sv;
+			enumMap[14] = "ModMouth"sv;
+			enumMap[15] = "ModNeck"sv;
+			enumMap[16] = "ModChestPrimary"sv;
+			enumMap[17] = "ModBack"sv;
+			enumMap[18] = "ModMisc1"sv;
+			enumMap[19] = "ModPelvisPrimary"sv;
+			enumMap[20] = "DecapitateHead"sv;
+			enumMap[21] = "Decapitate"sv;
+			enumMap[22] = "ModPelvisSecondary"sv;
+			enumMap[23] = "ModLegRight"sv;
+			enumMap[24] = "ModLegLeft"sv;
+			enumMap[25] = "ModFaceJewelry"sv;
+			enumMap[26] = "ModChestSecondary"sv;
+			enumMap[27] = "ModShoulder"sv;
+			enumMap[28] = "ModArmLeft"sv;
+			enumMap[29] = "ModArmRight"sv;
+			enumMap[30] = "ModMisc2"sv;
+			enumMap[31] = "FX01"sv;
 
-		return enumMap;
+			return enumMap;
+		}();
+
+		return map;
 	}
 
 	RE::BSString InventoryWeightCondition::GetArgument() const
@@ -4784,7 +4851,7 @@ namespace Conditions
 	{
 		const auto castingSource = static_cast<int32_t>(castingSourceComponent->GetNumericValue(nullptr));
 
-		static auto map = GetEnumMap();
+		const auto& map = GetEnumMap();
 		if (const auto it = map.find(castingSource); it != map.end()) {
 			return it->second;
 		}
@@ -4820,12 +4887,16 @@ namespace Conditions
 		return false;
 	}
 
-	std::map<int32_t, std::string_view> CastingSpellCondition::GetEnumMap()
+	const std::map<int32_t, std::string_view>& CastingSpellCondition::GetEnumMap()
 	{
-		std::map<int32_t, std::string_view> enumMap;
-		enumMap[0] = "Left hand"sv;
-		enumMap[1] = "Right hand"sv;
-		enumMap[2] = "Dual"sv;
-		return enumMap;
+		static const auto map = []() {
+			std::map<int32_t, std::string_view> enumMap;
+			enumMap[0] = "Left hand"sv;
+			enumMap[1] = "Right hand"sv;
+			enumMap[2] = "Dual"sv;
+			return enumMap;
+		}();
+
+		return map;
 	}
 }
