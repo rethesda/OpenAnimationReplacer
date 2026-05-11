@@ -1685,7 +1685,16 @@ namespace Parsing
 					continue;
 				}
 
-				AnimationFileHashCache::CalculateHash(path.string());
+				auto filename = TryConvertPathToString(path);
+				if (!filename) {
+					continue;
+				}
+
+				if (IsHiddenDirectoryName(*filename)) {
+					continue;
+				}
+
+				AnimationFileHashCache::CalculateHash(*filename);
 				g_precachedHashCount.fetch_add(1, std::memory_order_relaxed);
 			}
 		} catch (const std::filesystem::filesystem_error& e) {
