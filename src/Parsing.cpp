@@ -1649,9 +1649,9 @@ namespace Parsing
 	bool IsPathValid(const std::filesystem::path& a_path)
 	{
 		// skip invalid paths
-		std::string filenameString;
+		std::string pathString;
 		try {
-			filenameString = a_path.filename().string();
+			pathString = a_path.string();
 		} catch (const std::system_error&) {
 			auto pathU8String = a_path.u8string();
 			std::string_view pathSv(reinterpret_cast<const char*>(pathU8String.data()), pathU8String.size());
@@ -1661,7 +1661,7 @@ namespace Parsing
 
 		// skip hidden folders
 		static constexpr auto mohiddenFolderName = ".mohidden"sv;
-		if (Utils::ContainsStringIgnoreCase(filenameString, mohiddenFolderName)) {
+		if (Utils::ContainsStringIgnoreCase(pathString, mohiddenFolderName)) {
 			return false;
 		}
 
