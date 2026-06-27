@@ -703,4 +703,22 @@ namespace Utils
 
 		return false;
 	}
+
+	RE::TESNPC* GetActorBase(RE::Actor* a_actor)
+	{
+		if (RE::TESNPC* actorBase = a_actor->GetActorBase()) {
+			if (actorBase->formID >= 0xFF000000) {  // thanks to meh321 and https://github.com/Liolel/More-Informative-Console/
+				auto root = actorBase;
+				while (root->faceNPC && root->formID >= 0xFF000000) {
+					root = root->faceNPC;
+				}
+
+				return root;
+			}
+
+			return actorBase;
+		}
+
+		return nullptr;
+	}
 }

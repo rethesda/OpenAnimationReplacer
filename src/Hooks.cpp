@@ -95,8 +95,10 @@ namespace Hooks
 
 			// if the animation is not fully loaded yet, call generate with our fake clip generator containing the previous animation instead - this avoids seeing the reference pose for a frame
 			if (a_this->userData != 0xC) {
-				_hkbClipGenerator_Generate(activeClip->GetLastBlendingClipGenerator(), a_context, a_activeChildrenOutput, a_output, a_timeOffset);
-				return;
+				if (auto lastBlendingClipGenerator = activeClip->GetLastBlendingClipGenerator()) {
+					_hkbClipGenerator_Generate(lastBlendingClipGenerator, a_context, a_activeChildrenOutput, a_output, a_timeOffset);
+					return;
+				}
 			}
 		}
 

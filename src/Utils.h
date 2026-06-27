@@ -190,6 +190,8 @@ namespace Utils
 			a_matrix.entry[2][0] * a_vector.x + a_matrix.entry[2][1] * a_vector.y + a_matrix.entry[2][2] * a_vector.z);
 	}
 
+	[[nodiscard]] RE::TESNPC* GetActorBase(RE::Actor* a_actor);
+
 	template <class T>
 	class UniqueQueue
 	{

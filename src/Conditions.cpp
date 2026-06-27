@@ -1017,7 +1017,7 @@ namespace Conditions
 	{
 		if (a_refr) {
 			if (const auto actor = a_refr->As<RE::Actor>()) {
-				return actor->GetActorBase();
+				return Utils::GetActorBase(actor);
 			}
 		}
 
