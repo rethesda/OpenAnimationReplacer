@@ -24,4 +24,4 @@ jobs:
       BINARY_VERSION_VAR: "VERSION"
       TARGET_DIR: "build/src"
       VARIANT: "ng"
-      VCPKG_COMMIT_ID: "66affb04e3b889a3210f7f24bef2fa93a557fa62"
+      VCPKG_COMMIT_ID: "cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3"
