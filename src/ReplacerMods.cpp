@@ -187,18 +187,18 @@ void SubMod::LoadParseResult(const Parsing::SubModParseResult& a_parseResult)
 
 	HandleDeprecatedSettings();
 
-	LoadReplacementAnimationDatas(_replacementAnimDatas);
+	LoadReplacementAnimationDatas();
 
 	RestorePresetReferences();
 
 	SetDirtyRecursive(false);
 }
 
-void SubMod::LoadReplacementAnimationDatas(const std::vector<ReplacementAnimData>& a_replacementAnimDatas)
+void SubMod::LoadReplacementAnimationDatas()
 {
-	for (const auto& replacementAnimData : a_replacementAnimDatas) {
+	for (const auto& replacementAnimData : _replacementAnimDatas) {
 		auto search = std::ranges::find_if(_replacementAnimations, [&](const ReplacementAnimation* a_replacementAnimation) {
-			return a_replacementAnimation->GetProjectName() == replacementAnimData.projectName && a_replacementAnimation->GetAnimPath() == replacementAnimData.path;
+			return a_replacementAnimation->GetProjectName() == replacementAnimData.projectName && Utils::ComparePaths(a_replacementAnimation->GetAnimPath(), replacementAnimData.path);
 		});
 
 		if (search != _replacementAnimations.end()) {
@@ -238,6 +238,9 @@ void SubMod::UpdateAnimations() const
 	// Update stuff in each anim
 	for (const auto& anim : _replacementAnimations) {
 		anim->UpdateVariantCache();
+		if (_synchronizedConditionSet) {
+			anim->SetSynchronizedConditionSet(_synchronizedConditionSet.get());
+		}
 	}
 
 	// Update stuff in each anim replacements struct

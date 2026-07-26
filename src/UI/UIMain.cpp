@@ -1718,25 +1718,18 @@ namespace UI
 											ImGui::SameLine();
 											ImGui::PopID();
 										} else {
-											switch (variantMode) {
-											case VariantMode::kRandom:
-												{
-													UICommon::TextUnformattedDisabled("Weight:");
-													ImGui::SameLine();
-													ImGui::TextUnformatted(std::format("{}", a_variant.GetWeight()).data());
-													UICommon::AddTooltip("The weight of this variant used for the weighted random selection (e.g. a variant with a weight of 2 will be twice as likely to be picked than a variant with a weight of 1)");
+											if (variantMode == VariantMode::kSequential || a_variant.ShouldPlayOnce()) {
+												if (a_variant.ShouldPlayOnce()) {
+													ImGui::TextUnformatted("[Play once]");
+													UICommon::AddTooltip("The variant will only play once until the animation data resets after a while of inactivity.");
 													ImGui::SameLine();
 												}
-												break;
-											case VariantMode::kSequential:
-												{
-													if (a_variant.ShouldPlayOnce()) {
-														ImGui::TextUnformatted("[Play once]");
-														UICommon::AddTooltip("The variant will only play once until the animation data resets after a while of inactivity.");
-														ImGui::SameLine();
-													}
-												}
-												break;
+											} else if (variantMode == VariantMode::kRandom) {
+												UICommon::TextUnformattedDisabled("Weight:");
+												ImGui::SameLine();
+												ImGui::TextUnformatted(std::format("{}", a_variant.GetWeight()).data());
+												UICommon::AddTooltip("The weight of this variant used for the weighted random selection (e.g. a variant with a weight of 2 will be twice as likely to be picked than a variant with a weight of 1)");
+												ImGui::SameLine();
 											}
 										}
 

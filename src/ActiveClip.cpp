@@ -270,6 +270,11 @@ void ActiveClip::StartBlend(RE::hkbClipGenerator* a_clipGenerator, const RE::hkb
 
 void ActiveClip::PreUpdate(RE::hkbClipGenerator* a_clipGenerator, const RE::hkbContext& a_context, float a_timestep)
 {
+	if (_playbackSpeedMultiplier) {
+		a_clipGenerator->playbackSpeed = _originalPlaybackSpeed * *_playbackSpeedMultiplier;
+		a_clipGenerator->animationControl->playbackSpeed = a_clipGenerator->playbackSpeed;
+	}
+
 	if (IsSynchronizedClip()) {
 		return;  // Analogous function already ran by ActiveSynchronizedAnimation
 	}
@@ -386,6 +391,8 @@ void ActiveClip::PreUpdate(RE::hkbClipGenerator* a_clipGenerator, const RE::hkbC
 
 void ActiveClip::OnActivate(RE::hkbClipGenerator* a_clipGenerator, const RE::hkbContext& a_context)
 {
+	_originalPlaybackSpeed = a_clipGenerator->playbackSpeed;
+
 	if (!IsTransitioning() && !IsSynchronizedClip()) {
 		// don't try to replace animation while transitioning interruptible anims as we already replaced it, this should only run on the actual Activate called by the game
 		// also don't run this for synchronized clips as they are handled by OnActivateSynchronized
@@ -451,6 +458,10 @@ void ActiveClip::OnDeactivate(RE::hkbClipGenerator* a_clipGenerator, [[maybe_unu
 		if (auto functionSet = _currentReplacementAnimation->GetFunctionSet(Functions::FunctionSetType::kOnDeactivate)) {
 			functionSet->Run(_refr, a_clipGenerator, _currentReplacementAnimation->GetParentSubMod());
 		}
+	}
+
+	if (_playbackSpeedMultiplier) {
+		a_clipGenerator->playbackSpeed = _originalPlaybackSpeed;
 	}
 }
 

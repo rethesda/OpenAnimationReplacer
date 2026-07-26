@@ -381,4 +381,24 @@ namespace Functions
 	protected:
 		bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const override;
 	};
+
+	class SetPlaybackSpeedMultiplierFunction : public FunctionBase
+	{
+	public:
+		SetPlaybackSpeedMultiplierFunction()
+		{
+			playbackSpeedComponent = AddComponent<NumericFunctionComponent>("Playback speed");
+		}
+
+		[[nodiscard]] RE::BSString GetArgument() const override { return playbackSpeedComponent->GetArgument(); }
+
+		[[nodiscard]] RE::BSString GetName() const override { return "SetPlaybackSpeedMultiplier"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Sets the playback speed multiplier of the current animation clip."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 2, 0 }; }
+
+		NumericFunctionComponent* playbackSpeedComponent;
+
+	protected:
+		bool RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod, Trigger* a_trigger) const override;
+	};
 }

@@ -668,6 +668,7 @@ namespace Conditions
 		{
 			stateComponent = AddComponent<ConditionStateComponent>("State");
 			stateComponent->SetShouldResetOnLoopOrEcho(true);
+			stateComponent->SetAllowedDataScopes(StateDataScope::kLocal | StateDataScope::kSubMod | StateDataScope::kReplacerMod);
 			minRandomComponent = AddComponent<NumericConditionComponent>("Minimum random value");
 			minRandomComponent->SetForcedType(Components::NumericValue::Type::kStaticValue);
 			maxRandomComponent = AddComponent<NumericConditionComponent>("Maximum random value");
@@ -2799,5 +2800,25 @@ namespace Conditions
 		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 
 		static const std::map<int32_t, std::string_view>& GetEnumMap();
+	};
+
+	class HasBoundWeaponEquippedCondition : public ConditionBase
+	{
+	public:
+		HasBoundWeaponEquippedCondition()
+		{
+			boolComponent = AddComponent<BoolConditionComponent>("Left hand", "Enable to check left hand. Disable to check right hand.");
+		}
+
+		[[nodiscard]] RE::BSString GetArgument() const override;
+
+		[[nodiscard]] RE::BSString GetName() const override { return "HasBoundWeaponEquipped"sv.data(); }
+		[[nodiscard]] RE::BSString GetDescription() const override { return "Checks if the ref has a bound weapon equipped in the right or left hand."sv.data(); }
+		[[nodiscard]] constexpr REL::Version GetRequiredVersion() const override { return { 3, 2, 0 }; }
+
+		BoolConditionComponent* boolComponent;
+
+	protected:
+		bool EvaluateImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void* a_parentSubMod) const override;
 	};
 }

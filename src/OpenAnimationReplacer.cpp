@@ -618,6 +618,7 @@ void OpenAnimationReplacer::CreateReplacementAnimations([[maybe_unused]] const c
 	auto endOfParsingTime = std::chrono::high_resolution_clock::now();
 
 	for (auto& subMod : subModsToUpdate) {
+		subMod->LoadReplacementAnimationDatas();
 		subMod->HandleDeprecatedSettings();
 		subMod->UpdateAnimations();
 	}
@@ -947,6 +948,7 @@ void OpenAnimationReplacer::InitFactories()
 	_conditionFactories.emplace("IsSwimming", []() { return std::make_unique<IsSwimmingCondition>(); });
 	_conditionFactories.emplace("IsStaggered", []() { return std::make_unique<IsStaggeredCondition>(); });
 	_conditionFactories.emplace("CastingSpell", []() { return std::make_unique<CastingSpellCondition>(); });
+	_conditionFactories.emplace("HasBoundWeaponEquipped", []() { return std::make_unique<HasBoundWeaponEquippedCondition>(); });
 
 	// Hidden factories - not visible for selection in the UI, used for mapping legacy names to new conditions etc
 	_hiddenConditionFactories.emplace("IsEquippedRight", []() { return std::make_unique<IsEquippedCondition>(false); });
@@ -992,6 +994,7 @@ void OpenAnimationReplacer::InitFactories()
 	_functionFactories.emplace("UnequipSlot", []() { return std::make_unique<UnequipSlotFunction>(); });
 	_functionFactories.emplace("ModifyGraphVariable", []() { return std::make_unique<ModifyGraphVariableFunction>(); });
 	_functionFactories.emplace("FILENAME", []() { return std::make_unique<FILENAMEFunction>(); });
+	_functionFactories.emplace("SetPlaybackSpeedMultiplier", []() { return std::make_unique<SetPlaybackSpeedMultiplierFunction>(); });
 
 	for (auto& [name, factory] : _customFunctionFactories) {
 		_functionFactories.emplace(name, [&]() { return std::unique_ptr<IFunction>(factory()); });

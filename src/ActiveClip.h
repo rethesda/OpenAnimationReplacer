@@ -144,6 +144,8 @@ public:
 
 	ReplacementTrace trace;
 
+	void SetPlaybackSpeedMultiplier(float a_multiplier) { _playbackSpeedMultiplier = a_multiplier; }
+
 protected:
 	bool OnLoopOrEcho(RE::hkbClipGenerator* a_clipGenerator, bool a_bIsEcho, float a_echoDuration = 0.f);
 	void RemoveNonAnnotationTriggersFromClipTriggerArray(RE::hkRefPtr<RE::hkbClipTriggerArray>& a_clipTriggerArray);
@@ -181,4 +183,7 @@ protected:
 	std::deque<std::unique_ptr<BlendingClip>> _blendingClipGenerators{};
 
 	bool _bRegisteredSink = false;
+
+	float _originalPlaybackSpeed = 1.0f;
+	std::optional<float> _playbackSpeedMultiplier = std::nullopt;
 };

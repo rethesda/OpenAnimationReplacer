@@ -508,20 +508,63 @@ namespace Components
 			return bFound;
 		}
 
-		void SetKeyword(T* a_keyword)
+		void LookupFromLiteral() const
 		{
 			WriteLocker locker(_dataLock);
 			_keywordFormsMatchingLiteral.clear();
 
-			_type = Type::kForm;
+			auto& keywords = RE::TESDataHandler::GetSingleton()->GetFormArray<T>();
+			for (auto& kywd : keywords) {
+				if (kywd && kywd->formEditorID == std::string_view(_keywordLiteral)) {
+					_keywordFormsMatchingLiteral.emplace_back(kywd);
+				}
+			}
+		}
+
+		void SetType(Type a_type)
+		{
+			WriteLocker locker(_dataLock);
+
+			_type = a_type;
+			if (a_type == Type::kForm) {
+				_keywordFormsMatchingLiteral.clear();
+			} else {
+				_keywordForm.SetValue(nullptr);
+			}
+		}
+
+		void SetKeyword(T* a_keyword)
+		{
+			SetType(Type::kForm);
+
+			WriteLocker locker(_dataLock);
 			_keywordForm.SetValue(a_keyword);
+		}
+
+		void ClearKeyword()
+		{
+			WriteLocker locker(_dataLock);
+			_keywordForm.SetValue(nullptr);
 		}
 
 		void SetLiteral(std::string_view a_literal)
 		{
-			_keywordLiteral = a_literal;
-			_type = Type::kLiteral;
+			SetType(Type::kLiteral);
+
+			{
+				WriteLocker locker(_dataLock);
+				_keywordLiteral = a_literal;
+			}
+
 			LookupFromLiteral();
+		}
+
+		void LateMatchLiteral() const
+		{
+			if (!_bLateMatchingRan) {  // re-run the lookup once, in case the keyword was created after this object was created (e.g. dynamically by KID)
+				LookupFromLiteral();
+				_bLateMatchingRan = true;
+			}
 		}
 
 		Type GetType() const { return _type; }
@@ -536,6 +579,7 @@ namespace Components
 				ImGui::SetNextItemWidth(UI::UICommon::FirstColumnWidth(a_firstColumnWidthPercent));
 				if (ImGui::SliderInt("", reinterpret_cast<int*>(&_type), 0, 1, GetTypeName().data())) {
 					// Lookup cached form again if type changed
+					SetType(_type);
 					switch (_type) {
 					case Type::kLiteral:
 						LookupFromLiteral();
@@ -555,6 +599,7 @@ namespace Components
 						bEdited = true;
 					}
 					UI::UICommon::SecondColumn(a_firstColumnWidthPercent);
+					LateMatchLiteral();
 					if (_keywordFormsMatchingLiteral.size() > 0) {
 						std::string formIDs{};
 						bool bIsFirst = true;
@@ -582,6 +627,7 @@ namespace Components
 				case Type::kLiteral:
 					ImGui::TextUnformatted(_keywordLiteral.data());
 					UI::UICommon::SecondColumn(a_firstColumnWidthPercent);
+					LateMatchLiteral();
 					if (_keywordFormsMatchingLiteral.size() > 0) {
 						std::string formIDs{};
 						bool bIsFirst = true;
@@ -629,15 +675,14 @@ namespace Components
 
 			if (const auto keywordIt = object.FindMember("editorID"); keywordIt != object.MemberEnd() && keywordIt->value.IsString()) {
 				const std::string_view editorID = keywordIt->value.GetString();
-				_keywordLiteral = editorID;
 
-				LookupFromLiteral();
+				SetLiteral(editorID);
 
 				return;
 			}
 
 			if (const auto formIt = object.FindMember("form"); formIt != object.MemberEnd() && formIt->value.IsObject()) {
-				_type = Type::kForm;
+				SetType(Type::kForm);
 				_keywordForm.Parse(formIt->value);
 			}
 		}
@@ -664,34 +709,20 @@ namespace Components
 			return object;
 		}
 
-		void LookupFromLiteral()
-		{
-			WriteLocker locker(_dataLock);
-			_keywordForm.SetValue(nullptr);
-			_keywordFormsMatchingLiteral.clear();
-			_type = Type::kLiteral;
-
-			auto& keywords = RE::TESDataHandler::GetSingleton()->GetFormArray<T>();
-			for (auto& kywd : keywords) {
-				if (kywd && kywd->formEditorID == std::string_view(_keywordLiteral)) {
-					_keywordFormsMatchingLiteral.emplace_back(kywd);
-				}
-			}
-		}
-
 		void ForEachKeyword(std::function<RE::BSContainer::ForEachResult(T*)> a_callback) const
 		{
 			if (_type == Type::kForm) {
 				if (_keywordForm.IsValid()) {
 					a_callback(_keywordForm.GetValue());
 				}
-				return;
-			}
+			} else {
+				LateMatchLiteral();
 
-			ReadLocker locker(_dataLock);
-			for (auto& kywd : _keywordFormsMatchingLiteral) {
-				if (a_callback(kywd) == RE::BSContainer::ForEachResult::kStop) {
-					return;
+				ReadLocker locker(_dataLock);
+				for (auto& kywd : _keywordFormsMatchingLiteral) {
+					if (a_callback(kywd) == RE::BSContainer::ForEachResult::kStop) {
+						return;
+					}
 				}
 			}
 		}
@@ -700,7 +731,7 @@ namespace Components
 		static int KeywordInputTextCallback(struct ImGuiInputTextCallbackData* a_data)
 		{
 			auto* value = static_cast<KeywordValue*>(a_data->UserData);
-
+			value->ClearKeyword();
 			value->LookupFromLiteral();
 
 			return 0;
@@ -712,7 +743,9 @@ namespace Components
 
 		std::string _keywordLiteral{};
 		mutable SharedLock _dataLock{};
-		std::vector<T*> _keywordFormsMatchingLiteral{};
+		mutable std::vector<T*> _keywordFormsMatchingLiteral{};
+
+		mutable bool _bLateMatchingRan = false;
 	};
 
 }

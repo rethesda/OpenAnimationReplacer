@@ -117,6 +117,46 @@ namespace Utils
 		return lowerString;
 	}
 
+	bool ComparePaths(std::string_view a_lhs, std::string_view a_rhs)
+	{
+		const auto isSeparator = [](const char a_char) {
+			return a_char == '\\' || a_char == '/';
+		};
+
+		const auto charactersEqual = [&](const char a, const char b) {
+			if (isSeparator(a) && isSeparator(b)) {
+				return true;
+			}
+
+			return std::tolower(static_cast<unsigned char>(a)) ==
+			       std::tolower(static_cast<unsigned char>(b));
+		};
+
+		while (!a_lhs.empty() && isSeparator(a_lhs.back())) {
+			a_lhs.remove_suffix(1);
+		}
+
+		while (!a_rhs.empty() && isSeparator(a_rhs.back())) {
+			a_rhs.remove_suffix(1);
+		}
+
+		const std::string_view shorter =
+			a_lhs.size() <= a_rhs.size() ? a_lhs : a_rhs;
+
+		const std::string_view longer =
+			a_lhs.size() <= a_rhs.size() ? a_rhs : a_lhs;
+
+		const std::size_t suffixStart = longer.size() - shorter.size();
+
+		for (std::size_t i = 0; i < shorter.size(); ++i) {
+			if (!charactersEqual(shorter[i], longer[suffixStart + i])) {
+				return false;
+			}
+		}
+
+		return suffixStart == 0 || isSeparator(longer[suffixStart - 1]);
+	}
+
 	bool CheckPathLength(std::filesystem::path a_path)
 	{
 		auto absolutePath = a_path;

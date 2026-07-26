@@ -4899,4 +4899,25 @@ namespace Conditions
 
 		return map;
 	}
+
+	RE::BSString HasBoundWeaponEquippedCondition::GetArgument() const
+	{
+		return std::format("Bound weapon in {} hand", boolComponent->GetBoolValue() ? "left"sv : "right"sv).data();
+	}
+
+	bool HasBoundWeaponEquippedCondition::EvaluateImpl(RE::TESObjectREFR* a_refr, [[maybe_unused]] RE::hkbClipGenerator* a_clipGenerator, [[maybe_unused]] void* a_parentSubMod) const
+	{
+		if (a_refr) {
+			if (const auto actor = a_refr->As<RE::Actor>()) {
+				if (const auto equippedForm = actor->GetEquippedObject(boolComponent->GetBoolValue())) {
+					if (equippedForm->formType == RE::FormType::Weapon) {
+						const auto weapon = equippedForm->As<RE::TESObjectWEAP>();
+						return weapon->IsBound();
+					}
+				}
+			}
+		}
+
+		return false;
+	}
 }

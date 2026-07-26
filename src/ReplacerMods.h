@@ -35,7 +35,7 @@ public:
 
 	void SetAnimationFiles(const std::vector<ReplacementAnimationFile>& a_animationFiles);
 	void LoadParseResult(const Parsing::SubModParseResult& a_parseResult);
-	void LoadReplacementAnimationDatas(const std::vector<ReplacementAnimData>& a_replacementAnimDatas);
+	void LoadReplacementAnimationDatas();
 	void HandleDeprecatedSettings() const;
 
 	void ResetAnimations();

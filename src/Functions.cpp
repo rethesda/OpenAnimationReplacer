@@ -621,4 +621,16 @@ namespace Functions
 
 		return false;
 	}
+
+	bool SetPlaybackSpeedMultiplierFunction::RunImpl(RE::TESObjectREFR* a_refr, RE::hkbClipGenerator* a_clipGenerator, void*, Trigger*) const
+	{
+		if (a_refr) {
+			if (auto activeClip = OpenAnimationReplacer::GetSingleton().GetActiveClip(a_clipGenerator)) {
+				activeClip->SetPlaybackSpeedMultiplier(playbackSpeedComponent->GetNumericValue(a_refr));
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

@@ -47,11 +47,6 @@ struct ReplacementAnimData
 		bSharePlayedHistory(a_bSharePlayedHistory)
 	{}
 
-	ReplacementAnimData(const ReplacementAnimation* a_replacementAnimation) :
-		projectName(a_replacementAnimation->GetProjectName()),
-		path(a_replacementAnimation->GetAnimPath())
-	{}
-
 	std::string projectName;
 	std::string path;
 	bool bDisabled = false;
