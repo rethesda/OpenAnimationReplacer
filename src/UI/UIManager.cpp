@@ -577,7 +577,7 @@ namespace UI
 		return false;
 	}
 
-	const std::uint32_t(& UIManager::GetAlternativeKeyData() const noexcept)[4]
+	const std::uint32_t (&UIManager::GetAlternativeKeyData() const noexcept)[4]
 	{
 		return _alternativeKeyData;
 	}
