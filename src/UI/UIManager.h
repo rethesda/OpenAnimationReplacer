@@ -74,6 +74,13 @@ namespace UI
 
 		void DisplayWelcomeBanner() const;
 
+		bool GetShowMain() const { return bShowMain; }
+		bool SetShowMain(bool a_bShow);
+
+		bool GetSuppressMenuHotkey() const { return _bSuppressMenuHotkey; }
+		[[nodiscard]] const std::uint32_t (&GetAlternativeKeyData() const noexcept)[4];
+		void SetSuppressMenuHotkey(bool a_bSuppress, uint32_t a_alternativeKeyData[4]);
+
 	private:
 		static ImGuiStyle GetDefaultStyle();
 		void UpdateStyle();
@@ -86,6 +93,9 @@ namespace UI
 		bool _bShiftHeld = false;
 		bool _bCtrlHeld = false;
 		bool _bAltHeld = false;
+
+		bool _bSuppressMenuHotkey = false;
+		std::uint32_t _alternativeKeyData[4] = {};
 
 		std::array<std::unique_ptr<UIWindow>, static_cast<size_t>(WindowID::kMax)> _windows;
 

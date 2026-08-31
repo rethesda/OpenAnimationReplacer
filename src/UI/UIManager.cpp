@@ -520,7 +520,7 @@ namespace UI
 					io.AddKeyEvent(ImGuiKey_ModCtrl, _bCtrlHeld);
 					io.AddKeyEvent(ImGuiKey_ModAlt, _bAltHeld);
 
-					if (!bShowMain) {
+					if (!bShowMain && !GetSuppressMenuHotkey()) {
 						if (event.keyCode == Settings::uToggleUIKeyData[0] && event.IsDown()) {
 							if (_bCtrlHeld == static_cast<bool>(Settings::uToggleUIKeyData[1]) && _bShiftHeld == static_cast<bool>(Settings::uToggleUIKeyData[2]) && _bAltHeld == static_cast<bool>(Settings::uToggleUIKeyData[3])) {
 								bShowMain = true;
@@ -541,7 +541,7 @@ namespace UI
 							if (event.keyCode == 0x1 && event.IsDown()) {
 								// 0x1 = escape
 								bShowMain = false;
-							} else if (event.keyCode == Settings::uToggleUIKeyData[0] && event.IsDown() && io.KeyCtrl == static_cast<bool>(Settings::uToggleUIKeyData[1]) && io.KeyShift == static_cast<bool>(Settings::uToggleUIKeyData[2]) && io.KeyAlt == static_cast<bool>(Settings::uToggleUIKeyData[3])) {
+							} else if (!GetSuppressMenuHotkey() && event.keyCode == Settings::uToggleUIKeyData[0] && event.IsDown() && io.KeyCtrl == static_cast<bool>(Settings::uToggleUIKeyData[1]) && io.KeyShift == static_cast<bool>(Settings::uToggleUIKeyData[2]) && io.KeyAlt == static_cast<bool>(Settings::uToggleUIKeyData[3])) {
 								bShowMain = false;
 							} else {
 								io.AddKeyEvent(imGuiKey, event.IsPressed());
@@ -565,6 +565,32 @@ namespace UI
 	void UIManager::DisplayWelcomeBanner() const
 	{
 		static_cast<UIWelcomeBanner*>(_windows[static_cast<size_t>(WindowID::kWelcomeBanner)].get())->Display();
+	}
+
+	bool UIManager::SetShowMain(bool a_bShow)
+	{
+		if (a_bShow != bShowMain) {
+			bShowMain = a_bShow;
+			return true;
+		}
+
+		return false;
+	}
+
+	const std::uint32_t(& UIManager::GetAlternativeKeyData() const noexcept)[4]
+	{
+		return _alternativeKeyData;
+	}
+
+	void UIManager::SetSuppressMenuHotkey(bool a_bSuppress, uint32_t a_alternativeKeyData[4])
+	{
+		if (a_bSuppress) {
+			std::copy_n(a_alternativeKeyData, 4, _alternativeKeyData);
+		} else {
+			std::fill_n(_alternativeKeyData, 4, 0);
+		}
+
+		_bSuppressMenuHotkey = a_bSuppress;
 	}
 
 	ImGuiStyle UIManager::GetDefaultStyle()

@@ -398,7 +398,7 @@ namespace UI::UICommon
 
 #define IM_VK_KEYPAD_ENTER (VK_RETURN + 256)
 
-	std::string GetKeyName(uint32_t a_keycode)
+	std::string GetKeyName(const uint32_t a_keycode)
 	{
 		uint32_t key = MapVirtualKeyEx(a_keycode, MAPVK_VSC_TO_VK_EX, GetKeyboardLayout(0));
 
@@ -535,7 +535,7 @@ namespace UI::UICommon
 		           keyboard_keys_international[key];
 	}
 
-	std::string GetKeyName(uint32_t a_key[4])
+	std::string GetKeyName(const uint32_t a_key[4])
 	{
 		return (a_key[1] ? "Ctrl + " : std::string()) + (a_key[2] ? "Shift + " : std::string()) + (a_key[3] ? "Alt + " : std::string()) + GetKeyName(a_key[0]);
 	}

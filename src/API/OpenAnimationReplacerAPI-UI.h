@@ -10,8 +10,9 @@ namespace OAR_API::UI
 	{
 		V1,  // unsupported
 		V2,
+		V3,
 
-		Latest = V2
+		Latest = V3
 	};
 
 	// Open Animation Replacer's UI interface
@@ -43,7 +44,41 @@ namespace OAR_API::UI
 		[[nodiscard]] virtual float GetFirstColumnWidth(float a_percent) noexcept = 0;
 	};
 
-	using IUIInterface = IUIInterface2;
+	class IUIInterface3 : public IUIInterface2
+	{
+	public:
+		/// <summary>
+		/// Opens the Open Animation Replacer menu.
+		/// </summary>
+		/// <returns>Whether the operation was successful</returns>
+		virtual bool OpenMenu() noexcept = 0;
+
+		/// <summary>
+		/// Closes the Open Animation Replacer menu.
+		/// </summary>
+		/// <returns>Whether the operation was successful</returns>
+		virtual bool CloseMenu() noexcept = 0;
+
+		/// <summary>
+		/// Toggles the Open Animation Replacer menu.
+		/// </summary>
+		virtual void ToggleMenu() noexcept = 0;
+
+		/// <summary>
+		/// Checks if the Open Animation Replacer's menu is currently open.
+		/// </summary>
+		/// <returns>Whether the menu is currently open</returns>
+		virtual bool IsMenuOpen() noexcept = 0;
+
+		/// <summary>
+		/// Suppresses the Open Animation Replacer's menu hotkey. Intended to be used by other plugins that manually open Open Animation Replacer's menu.
+		/// </summary>
+		/// <param name="a_bSuppress">Whether the hotkey should be suppressed or not</param>
+		/// <param name="a_alternativeKeyData">The alternative key to be displayed in the UI banners instead of the set hotkey. Only used if a_bSuppress is true. The first member of the array is the key, and the following three indicate whether modifier keys Ctrl, Shift or Alt need to be held.</param>
+		virtual void SetSuppressMenuHotkey(bool a_bSuppress, uint32_t a_alternativeKeyData[4] = {}) noexcept = 0;
+	};
+
+	using IUIInterface = IUIInterface3;
 
 	using _RequestPluginAPI_UI = IUIInterface* (*)(InterfaceVersion a_interfaceVersion, const char* a_pluginName, REL::Version a_pluginVersion);
 

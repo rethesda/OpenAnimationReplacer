@@ -19,7 +19,12 @@ namespace UI
 		if (ImGui::Begin("Open Animation Replacer##Error", nullptr, windowFlags)) {
 			constexpr auto titleText = "Open Animation Replacer"sv;
 			constexpr auto errorTextA = "Major issue detected! Open the Open Animation Replacer menu by pressing"sv;
-			const auto keyNameText = UICommon::GetKeyName(Settings::uToggleUIKeyData);
+			std::string keyNameText;
+			if (UIManager::GetSingleton().GetSuppressMenuHotkey()) {
+				keyNameText = UICommon::GetKeyName(UIManager::GetSingleton().GetAlternativeKeyData());
+			} else {
+				keyNameText = UICommon::GetKeyName(Settings::uToggleUIKeyData);
+			}
 			constexpr auto errorTextB = "and click the bar at the bottom for more information."sv;
 			const auto windowWidth = ImGui::GetWindowSize().x;
 			const auto titleTextWidth = ImGui::CalcTextSize(titleText.data()).x;

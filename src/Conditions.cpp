@@ -4299,7 +4299,7 @@ namespace Conditions
 				RE::MATERIAL_ID::kBoulderSmall,
 				RE::MATERIAL_ID::kSnowStairs,
 				RE::MATERIAL_ID::kStoneHeavy,
-				RE::MATERIAL_ID::kDragonSkeleton,
+				RE::MATERIAL_ID::kCharacterBumper,
 				RE::MATERIAL_ID::kTrap,
 				RE::MATERIAL_ID::kBowsStaves,
 				RE::MATERIAL_ID::kAlduin,
@@ -4566,10 +4566,10 @@ namespace Conditions
 							RE::hkpWorldRayCastInput raycastInput;
 							RE::hkpWorldRayCastOutput raycastOutput;
 
-							uint32_t collisionFilterInfo = 0;
+							RE::CFilter collisionFilterInfo{};
 							actor->GetCollisionFilterInfo(collisionFilterInfo);
-							uint16_t collisionGroup = collisionFilterInfo >> 16;
-							raycastInput.filterInfo = (static_cast<uint32_t>(collisionGroup) << 16) | static_cast<uint32_t>(RE::COL_LAYER::kCharController);
+							uint16_t collisionGroup = collisionFilterInfo.filter >> 16;
+							raycastInput.filterInfo.filter = (static_cast<uint32_t>(collisionGroup) << 16) | static_cast<uint32_t>(RE::COL_LAYER::kCharController);
 							raycastInput.from = raycastStart;
 							raycastInput.to = raycastEnd;
 

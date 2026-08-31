@@ -120,8 +120,8 @@ namespace UI
 		bool InputTextWithHint(const char* a_label, const char* a_hint, std::string* a_str, int a_maxLength, ImGuiInputTextFlags a_flags = 0, ImGuiInputTextCallback a_callback = nullptr, void* a_userData = nullptr);
 
 		// inspired by reshade's key input box
-		std::string GetKeyName(uint32_t a_keycode);
-		std::string GetKeyName(uint32_t a_key[4]);
+		std::string GetKeyName(const uint32_t a_keycode);
+		std::string GetKeyName(const uint32_t a_key[4]);
 		bool InputKey(const char* a_label, uint32_t a_key[4]);
 
 		// modified from imgui with removed mouse cursor change

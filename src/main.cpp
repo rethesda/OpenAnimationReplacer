@@ -180,8 +180,6 @@ extern "C" DLLEXPORT OAR_API::Conditions::IConditionsInterface* SKSEAPI RequestP
 		logger::warn("OpenAnimationReplacer::RequestPluginAPI_Conditions requested an outdated interface version");
 		return nullptr;
 	case OAR_API::Conditions::InterfaceVersion::V2:
-		logger::info("OpenAnimationReplacer::RequestPluginAPI_Conditions returned the API singleton");
-		return api;
 	case OAR_API::Conditions::InterfaceVersion::V3:
 		logger::info("OpenAnimationReplacer::RequestPluginAPI_Conditions returned the API singleton");
 		return api;
@@ -228,6 +226,7 @@ extern "C" DLLEXPORT OAR_API::UI::IUIInterface* SKSEAPI RequestPluginAPI_UI(cons
 		logger::warn("OpenAnimationReplacer::RequestPluginAPI_UI requested an outdated interface version");
 		return nullptr;
 	case OAR_API::UI::InterfaceVersion::V2:
+	case OAR_API::UI::InterfaceVersion::V3:
 		logger::info("OpenAnimationReplacer::RequestPluginAPI_UI returned the API singleton");
 		return api;
 	}

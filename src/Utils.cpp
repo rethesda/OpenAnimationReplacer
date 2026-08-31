@@ -263,7 +263,7 @@ namespace Utils
 	{
 		if (a_actorValue > RE::ActorValue::kNone && a_actorValue < RE::ActorValue::kTotal) {
 			const auto actorValueList = RE::ActorValueList::GetSingleton();
-			if (const auto actorValueInfo = actorValueList->GetActorValue(a_actorValue)) {
+			if (const auto actorValueInfo = actorValueList->GetActorValueInfo(a_actorValue)) {
 				const std::string_view actorValueName = actorValueInfo->enumName;
 				return actorValueName;
 			}

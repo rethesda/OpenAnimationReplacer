@@ -107,6 +107,13 @@ namespace OAR_API
 			void SecondColumn(float a_percent) noexcept override;
 			float GetFirstColumnWidth(float a_percent) noexcept override;
 
+			// InterfaceVersion3
+			bool OpenMenu() noexcept override;
+			bool CloseMenu() noexcept override;
+			void ToggleMenu() noexcept override;
+			bool IsMenuOpen() noexcept override;
+			void SetSuppressMenuHotkey(bool a_bSuppress, uint32_t a_alternativeKeyData[4]) noexcept override;
+
 		private:
 			UIInterface() = default;
 			UIInterface(const UIInterface&) = delete;

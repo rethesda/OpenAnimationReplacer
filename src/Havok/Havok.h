@@ -4,32 +4,6 @@ static uint32_t& g_dwTlsIndex = *(uint32_t*)REL::VariantID(520865, 407383, 0x30A
 
 namespace RE
 {
-	class hkClass
-	{
-	public:
-		enum class FlagValues
-		{
-			kNone = 0,
-			kNotSerializable = 1
-		};
-
-		const char* name;                              // 00
-		const hkClass* parent;                         // 08
-		int32_t objectSize;                            // 10
-		int32_t numImplementedInterfaces;              // 14
-		class hkClassEnum* declaredEnums;              // 18
-		int32_t numDeclaredEnums;                      // 20
-		uint32_t pad24;                                // 24
-		class hkClassMember* declaredMembers;          // 28
-		int32_t numDeclaredMembers;                    // 30
-		uint32_t pad34;                                // 34
-		void* defaults;                                // 38
-		class hkCustomAttributes* attributes;          // 40
-		stl::enumeration<FlagValues, uint32_t> flags;  // 08
-		int32_t describedVersion;                      // 4C
-	};
-	static_assert(sizeof(hkClass) == 0x50);
-
 	template <class Key, class Value>
 	class hkMapBase
 	{
@@ -238,73 +212,6 @@ namespace RE
 		hkPointerMap<int32_t, int32_t> externalToInternalMap;
 	};
 
-	class BSSynchronizedClipGenerator : public hkbGenerator
-	{
-	public:
-		class hkbDefaultSynchronizedScene : public hkReferencedObject
-		{
-		public:
-			inline static constexpr auto RTTI = RTTI_BSSynchronizedClipGenerator__hkbDefaultSynchronizedScene;
-			inline static constexpr auto VTABLE = VTABLE_BSSynchronizedClipGenerator__hkbDefaultSynchronizedScene;
-
-			~hkbDefaultSynchronizedScene() override;  // 00
-
-			// add
-			virtual bool AreAllClipsActivated();          // 03
-			virtual bool IsDoneReorientingSupportChar();  // 04
-			virtual float GetUnk18();                     // 05
-			virtual void UpdateUnk94(float a1);           // 06
-			virtual void OnSynchronizedClipDeactivate();  // 07
-			virtual void OnSynchronizedClipActivate();    // 08
-			virtual void Unk_09(void);                    // 09
-
-			// members
-			BSReadWriteLock lock;  // 10
-		};
-		static_assert(sizeof(hkbDefaultSynchronizedScene) == 0x18);
-
-		class hkbSynchronizedAnimationScene : public hkbDefaultSynchronizedScene
-		{
-		public:
-			inline static constexpr auto RTTI = RTTI_BSSynchronizedClipGenerator__hkbSynchronizedAnimationScene;
-			inline static constexpr auto VTABLE = VTABLE_BSSynchronizedClipGenerator__hkbSynchronizedAnimationScene;
-
-			~hkbSynchronizedAnimationScene() override;  // 00
-		};
-		static_assert(sizeof(hkbSynchronizedAnimationScene) == 0x18);
-
-		inline static constexpr auto RTTI = RTTI_BSSynchronizedClipGenerator;
-		inline static constexpr auto VTABLE = VTABLE_BSSynchronizedClipGenerator;
-
-		~BSSynchronizedClipGenerator() override;  // 00
-
-		// members
-		uint64_t pad48;                                             // 48
-		hkbClipGenerator* clipGenerator;                            // 50
-		hkStringPtr syncAnimPrefix;                                 // 58
-		bool syncClipIgnoreMarkPlacement;                           // 60
-		float getToMarkTime;                                        // 64
-		float markErrorThreshold;                                   // 68
-		bool leadCharacter;                                         // 6C
-		bool reorientSupportChar;                                   // 6D
-		bool applyMotionFromRoot;                                   // 6E
-		class BGSSynchronizedAnimationInstance* synchronizedScene;  // 70
-		uint32_t unk78;                                             // 78
-		uint32_t unk7C;                                             // 7C
-		hkQsTransform startMarkWS;                                  // 80
-		hkQsTransform endMarkWS;                                    // B0
-		hkQsTransform startMarkMS;                                  // E0
-		float currentLerp;                                          // 110
-		hkaAnimationBinding* localSyncBinding;                      // 118
-		hkPointerMap<int32_t, int32_t>* eventMap;                   // 120  hkPointerMap<int, int>*
-		uint16_t animationBindingIndex;                             // 128
-		bool atMark;                                                // 12A
-		bool allCharactersInScene;                                  // 12B
-		bool allCharactersAtMarks;                                  // 12C
-	};
-	static_assert(sizeof(BSSynchronizedClipGenerator) == 0x130);
-	static_assert(offsetof(BSSynchronizedClipGenerator, animationBindingIndex) == 0x128);
-
 	namespace BSSynchronizedClipGeneratorUtils
 	{
 		class FindEventFunctor
@@ -389,14 +296,6 @@ namespace RE
 		BSReadWriteLock lock;                                                       // 20
 		uint64_t unk28;                                                             // 28
 	};
-
-	class hkbEventPayload : public hkReferencedObject
-	{
-	public:
-		inline static constexpr auto RTTI = RTTI_hkbEventPayload;
-		inline static constexpr auto VTABLE = VTABLE_hkbEventPayload;
-	};
-	static_assert(sizeof(hkbEventPayload) == 0x10);
 
 	class hkbStringEventPayload : public hkbEventPayload
 	{
@@ -531,27 +430,6 @@ namespace RE
 		uint32_t unk_5C;
 	};
 
-	class hkMemoryRouter
-	{
-	public:
-		uint64_t unk00;             // 00
-		uint64_t unk08;             // 08
-		uint64_t unk10;             // 10
-		uint64_t unk18;             // 18
-		uint64_t unk20;             // 20
-		uint64_t unk28;             // 28
-		uint64_t unk30;             // 30
-		uint64_t unk38;             // 38
-		uint64_t unk40;             // 40
-		uint64_t unk48;             // 48
-		hkMemoryAllocator* temp;    // 50
-		hkMemoryAllocator* heap;    // 58
-		hkMemoryAllocator* debug;   // 60
-		hkMemoryAllocator* solver;  // 68
-		void* userData;             // 70
-	};
-	static_assert(offsetof(hkMemoryRouter, heap) == 0x58);
-
 	// used a bunch of RE from fenix31415's commonlib fork (https://github.com/fenix31415/CommonLibSSE/) as it's not merged into NG yet
 	template <typename Data>
 	class BSTInterpolatorData
@@ -608,95 +486,6 @@ namespace RE
 		uint32_t padC;                       // 0C
 	};
 
-	class AnimationClipDataSingleton :
-		public BSTSingletonSDM<AnimationClipDataSingleton>
-	{
-	public:
-		inline static auto RTTI = RTTI_AnimationClipDataSingleton;
-		inline static auto VTABLE = VTABLE_AnimationClipDataSingleton;
-
-		class BoundAnimationData
-		{
-		public:
-			BSTInterpolatorData<NiPoint3> translation;   // 00
-			BSTInterpolatorData<hkQuaternion> rotation;  // 10
-			float duration;                              // 20
-			uint32_t pad24;                              // 24
-		};
-		static_assert(sizeof(BoundAnimationData) == 0x28);
-
-		struct ClipTriggerData
-		{
-			BSFixedString name;
-			float time;
-			uint32_t padC;
-		};
-		static_assert(sizeof(ClipTriggerData) == 0x10);
-
-		class ClipData
-		{
-		public:
-			bool GetEventTime(const BSFixedString& a_eventName, float& a_outTime)
-			{
-				using func_t = decltype(&AnimationClipDataSingleton::ClipData::GetEventTime);
-				REL::Relocation<func_t> func{ RELOCATION_ID(31803, 32577) };
-				return func(this, a_eventName, a_outTime);
-			}
-
-			// members
-			float motionSpeed;               // 00
-			uint16_t bound_data_ind;         // 04
-			uint16_t numTriggers;            // 06
-			ClipTriggerData triggerData[1];  // 08 -- actually [numTriggers]
-		};
-		static_assert(sizeof(ClipData) == 0x18);
-
-		class AnimationClipData
-		{
-		public:
-			ClipData* clipGeneratorData;
-			BoundAnimationData* boundAnimationData;
-		};
-		static_assert(sizeof(AnimationClipData) == 0x10);
-
-		class AnimationData : public BSIntrusiveRefCounted
-		{
-		public:
-			uint32_t pad04;                             // 04
-			BSTHashMap<BSFixedString, ClipData> clips;  // 08
-			BSTArray<BoundAnimationData> boundDatas;    // 38
-			BSTArray<BSFixedString> hkxFiles;           // 50
-		};
-		static_assert(sizeof(AnimationData) == 0x68);
-
-		virtual ~AnimationClipDataSingleton();  // 00
-
-		[[nodiscard]] static AnimationClipDataSingleton* GetSingleton()
-		{
-			REL::Relocation<AnimationClipDataSingleton**> singleton{ RELOCATION_ID(515414, 401553) };
-			return *singleton;
-		}
-
-		bool GetClipInformation(const BSFixedString& a_projectName, const BSFixedString& a_clipName, AnimationClipData& a_outClipInformation)
-		{
-			using func_t = decltype(&AnimationClipDataSingleton::GetClipInformation);
-			REL::Relocation<func_t> func{ RELOCATION_ID(31799, 32573) };
-			return func(this, a_projectName, a_clipName, a_outClipInformation);
-		}
-
-		// members
-		//uint64_t unk08;                            // 08
-		BSTHashMap<BSFixedString, NiPointer<AnimationData>> animDatas;  // 10
-		BSTArray<BSFixedString> hkxFiles;                               // 40
-		uint64_t unk58;                                                 // 58
-		uint64_t unk60;                                                 // 60
-		uint64_t unk68;                                                 // 68
-		uint64_t unk70;                                                 // 70
-		uint64_t unk78;                                                 // 78
-		uint64_t unk80;                                                 // 80
-	};
-	static_assert(sizeof(AnimationClipDataSingleton) == 0x88);
-
 	class AnimationSetDataSingleton :
 		public BSTSingletonSDM<AnimationSetDataSingleton>
 	{
@@ -741,26 +530,7 @@ namespace RE
 	};
 
 	class hkbSymbolLinker;
-
-	class hkbEventInfo
-	{
-	public:
-		constexpr hkbEventInfo() :
-			flags(Flags(0)) {}
-
-		bool isSyncPoint() { return (flags.get() & FLAG_SYNC_POINT) != 0; }
-		bool isSilent() { return (flags.get() & FLAG_SILENT) != 0; }
-
-		enum Flags
-		{
-			FLAG_SILENT = 0x1,
-			FLAG_SYNC_POINT = 0x2,
-		};
-
-		stl::enumeration<Flags, std::uint32_t> flags;
-	};
-	static_assert(sizeof(hkbEventInfo) == 0x4);
 }
 
 inline RE::hkMemoryRouter& hkGetMemoryRouter() { return *(RE::hkMemoryRouter*)(uintptr_t)REX::W32::TlsGetValue(g_dwTlsIndex); }
-inline void* hkHeapAlloc(int numBytes) { return hkGetMemoryRouter().heap->BlockAlloc(numBytes); }
+inline void* hkHeapAlloc(int numBytes) { return hkGetMemoryRouter().Heap->BlockAlloc(numBytes); }

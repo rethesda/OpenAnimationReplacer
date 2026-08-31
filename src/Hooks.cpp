@@ -383,7 +383,7 @@ namespace Hooks
 
 	void HavokHooks::OnCreateSynchronizedClipBinding(RE::BSSynchronizedClipGenerator* a_synchronizedClipGenerator, RE::hkbCharacter* a_character)
 	{
-		a_synchronizedClipGenerator->animationBindingIndex -= OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(a_character);
+		a_synchronizedClipGenerator->synchronizedAnimationBindingIndex -= OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(a_character);
 	}
 
 	void HavokHooks::InjectEvent(RE::hkbBehaviorGraph* a_graph, const RE::hkStringPtr& a_eventName)

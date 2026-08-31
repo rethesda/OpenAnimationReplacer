@@ -2,6 +2,7 @@
 
 #include "Settings.h"
 #include "UICommon.h"
+#include "UIManager.h"
 
 namespace UI
 {
@@ -36,7 +37,12 @@ namespace UI
 		if (ImGui::Begin("Open Animation Replacer##Welcome", nullptr, windowFlags)) {
 			const auto titleText = std::format("Open Animation Replacer {}.{}.{}", Plugin::VERSION.major(), Plugin::VERSION.minor(), Plugin::VERSION.patch());
 			constexpr auto textA = "Press"sv;
-			const auto keyNameText = UICommon::GetKeyName(Settings::uToggleUIKeyData);
+			std::string keyNameText;
+			if (UIManager::GetSingleton().GetSuppressMenuHotkey()) {
+				keyNameText = UICommon::GetKeyName(UIManager::GetSingleton().GetAlternativeKeyData());
+			} else {
+				keyNameText = UICommon::GetKeyName(Settings::uToggleUIKeyData);
+			}
 			constexpr auto textB = "to open the in-game UI."sv;
 			const auto windowWidth = ImGui::GetWindowSize().x;
 			const auto titleTextWidth = ImGui::CalcTextSize(titleText.data()).x;

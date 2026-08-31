@@ -347,7 +347,7 @@ namespace Functions
 			if (const auto descriptor = form->As<RE::BGSSoundDescriptorForm>()) {
 				RE::BSSoundHandle handle;
 				const auto audioManager = RE::BSAudioManager::GetSingleton();
-				audioManager->BuildSoundDataFromDescriptor(handle, descriptor);
+				audioManager->GetSoundHandle(handle, descriptor);
 				handle.SetObjectToFollow(a_refr->Get3D());
 				handle.Play();
 
@@ -366,7 +366,7 @@ namespace Functions
 				const auto actorValue = actorValueComponent->GetActorValue();
 
 				if (actorValue > RE::ActorValue::kNone && actorValue < RE::ActorValue::kTotal) {
-					actorValueOwner->RestoreActorValue(RE::ACTOR_VALUE_MODIFIER::kDamage, actorValue, valueToWriteComponent->GetNumericValue(a_refr));
+					actorValueOwner->ModActorValue(RE::ACTOR_VALUE_MODIFIER::kDamage, actorValue, valueToWriteComponent->GetNumericValue(a_refr));
 					return true;
 				}
 			}

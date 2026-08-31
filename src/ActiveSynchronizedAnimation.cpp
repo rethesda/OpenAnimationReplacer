@@ -13,7 +13,7 @@ ActiveSynchronizedAnimation::~ActiveSynchronizedAnimation()
 	ReadLocker locker(_clipDataLock);
 
 	for (auto& [synchronizedClipGenerator, replacementInfo] : _clipData) {
-		synchronizedClipGenerator->animationBindingIndex = replacementInfo->originalSynchronizedIndex;
+		synchronizedClipGenerator->synchronizedAnimationBindingIndex = replacementInfo->originalSynchronizedIndex;
 		if (synchronizedClipGenerator->clipGenerator) {
 			synchronizedClipGenerator->clipGenerator->animationBindingIndex = replacementInfo->originalInternalClipIndex;
 		}
@@ -100,17 +100,17 @@ void ActiveSynchronizedAnimation::OnSynchronizedClipPostUpdate(RE::BSSynchronize
 void ActiveSynchronizedAnimation::OnSynchronizedClipDeactivate(RE::BSSynchronizedClipGenerator* a_synchronizedClipGenerator, [[maybe_unused]] const RE::hkbContext& a_context)
 {
 	if (_bTransitioning) {
-		if (a_synchronizedClipGenerator->animationBindingIndex == static_cast<uint16_t>(-1) && a_synchronizedClipGenerator->localSyncBinding) {
-			a_synchronizedClipGenerator->localSyncBinding->RemoveReference();
-			a_synchronizedClipGenerator->localSyncBinding = nullptr;
+		if (a_synchronizedClipGenerator->synchronizedAnimationBindingIndex == static_cast<uint16_t>(-1) && a_synchronizedClipGenerator->binding) {
+			a_synchronizedClipGenerator->binding->RemoveReference();
+			a_synchronizedClipGenerator->binding = nullptr;
 		}
 
 		a_synchronizedClipGenerator->synchronizedScene->numActivated--;
 
-		a_synchronizedClipGenerator->currentLerp = 0.f;
-		a_synchronizedClipGenerator->atMark = false;
-		a_synchronizedClipGenerator->allCharactersInScene = false;
-		a_synchronizedClipGenerator->allCharactersAtMarks = false;
+		a_synchronizedClipGenerator->getToMarkProgress = 0.f;
+		a_synchronizedClipGenerator->doneReorientingSupportChar = false;
+		a_synchronizedClipGenerator->unk12B = false;  // allCharactersInScene
+		a_synchronizedClipGenerator->unk12C = false;  // allCharactersAtMarks
 
 		return;
 	}
@@ -120,7 +120,7 @@ void ActiveSynchronizedAnimation::OnSynchronizedClipDeactivate(RE::BSSynchronize
 
 		auto it = _clipData.find(a_synchronizedClipGenerator);
 		if (it != _clipData.end()) {
-			a_synchronizedClipGenerator->animationBindingIndex = it->second->originalSynchronizedIndex;
+			a_synchronizedClipGenerator->synchronizedAnimationBindingIndex = it->second->originalSynchronizedIndex;
 			a_synchronizedClipGenerator->clipGenerator->animationBindingIndex = it->second->originalInternalClipIndex;
 
 			_clipData.erase(it);
@@ -209,12 +209,12 @@ void ActiveSynchronizedAnimation::Initialize()
 	{
 		WriteLocker locker(_clipDataLock);
 		for (const auto& actorSyncInfo : _synchronizedAnimationInstance->actorSyncInfos) {
-			const uint16_t originalSynchronizedIndex = actorSyncInfo.synchronizedClipGenerator->animationBindingIndex;
+			const uint16_t originalSynchronizedIndex = actorSyncInfo.synchronizedClipGenerator->synchronizedAnimationBindingIndex;
 			const uint16_t originalInternalClipIndex = actorSyncInfo.synchronizedClipGenerator->clipGenerator->animationBindingIndex;
 
 			// fix ID if we aren't running Paired Animation Improvements
-			if (actorSyncInfo.synchronizedClipGenerator->animationBindingIndex != static_cast<uint16_t>(-1)) {
-				actorSyncInfo.synchronizedClipGenerator->animationBindingIndex += OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(actorSyncInfo.character);
+			if (actorSyncInfo.synchronizedClipGenerator->synchronizedAnimationBindingIndex != static_cast<uint16_t>(-1)) {
+				actorSyncInfo.synchronizedClipGenerator->synchronizedAnimationBindingIndex += OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(actorSyncInfo.character);
 			}
 
 			ReplacementAnimation* replacementAnimation = nullptr;
@@ -356,9 +356,9 @@ ActiveScenelessSynchronizedClip::ActiveScenelessSynchronizedClip(RE::BSSynchroni
 void ActiveScenelessSynchronizedClip::OnSynchronizedClipActivate(RE::BSSynchronizedClipGenerator* a_synchronizedClipGenerator, const RE::hkbContext& a_context)
 {
 	// fix ID if we aren't running Paired Animation Improvements
-	if (a_synchronizedClipGenerator->animationBindingIndex != static_cast<uint16_t>(-1)) {
-		_originalSynchronizedIndex = a_synchronizedClipGenerator->animationBindingIndex;
-		a_synchronizedClipGenerator->animationBindingIndex += OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(a_context.character);
+	if (a_synchronizedClipGenerator->synchronizedAnimationBindingIndex != static_cast<uint16_t>(-1)) {
+		_originalSynchronizedIndex = a_synchronizedClipGenerator->synchronizedAnimationBindingIndex;
+		a_synchronizedClipGenerator->synchronizedAnimationBindingIndex += OpenAnimationReplacer::GetSingleton().GetSynchronizedClipsIDOffset(a_context.character);
 	}
 
 	bool bAdded;
@@ -369,6 +369,6 @@ void ActiveScenelessSynchronizedClip::OnSynchronizedClipActivate(RE::BSSynchroni
 void ActiveScenelessSynchronizedClip::OnSynchronizedClipDeactivate(RE::BSSynchronizedClipGenerator* a_synchronizedClipGenerator, [[maybe_unused]] const RE::hkbContext& a_context)
 {
 	if (_originalSynchronizedIndex.has_value()) {
-		a_synchronizedClipGenerator->animationBindingIndex = *_originalSynchronizedIndex;
+		a_synchronizedClipGenerator->synchronizedAnimationBindingIndex = *_originalSynchronizedIndex;
 	}
 }

@@ -1,5 +1,7 @@
 #include "ModAPI.h"
 #include "OpenAnimationReplacer.h"
+#include "UI/UIMain.h"
+#include "UI/UIManager.h"
 
 namespace OAR_API
 {
@@ -240,6 +242,32 @@ namespace OAR_API
 		float UIInterface::GetFirstColumnWidth(float a_percent) noexcept
 		{
 			return ::UI::UICommon::FirstColumnWidth(a_percent);
+		}
+
+		bool UIInterface::OpenMenu() noexcept
+		{
+			return ::UI::UIManager::GetSingleton().SetShowMain(true);
+		}
+
+		bool UIInterface::CloseMenu() noexcept
+		{
+			return ::UI::UIManager::GetSingleton().SetShowMain(false);
+		}
+
+		void UIInterface::ToggleMenu() noexcept
+		{
+			auto& uiManager = ::UI::UIManager::GetSingleton();
+			uiManager.SetShowMain(!uiManager.GetShowMain());
+		}
+
+		bool UIInterface::IsMenuOpen() noexcept
+		{
+			return ::UI::UIManager::GetSingleton().GetShowMain();
+		}
+
+		void UIInterface::SetSuppressMenuHotkey(bool a_bSuppress, uint32_t a_alternativeKeyData[4]) noexcept
+		{
+			::UI::UIManager::GetSingleton().SetSuppressMenuHotkey(a_bSuppress, a_alternativeKeyData);
 		}
 	}
 }

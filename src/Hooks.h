@@ -16,7 +16,9 @@ namespace Hooks
 			// Hook main update to run jobs and update our game timer
 			const REL::Relocation<uintptr_t> mainHook{ REL::VariantID(35565, 36564, 0x5BAB10) };  // 5B2FF0, 5D9F50, 5BAB10 main update
 			SKSE::AllocTrampoline(14);
-			_Nullsub = trampoline.write_call<5>(mainHook.address() + REL::VariantOffset(0x748, 0xC26, 0x7EE).offset(), Nullsub);  // 5B3738, 5DAB76, 5BB256
+
+			auto NullsubAEOffset = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 0xC38 : 0xC26;
+			_Nullsub = trampoline.write_call<5>(mainHook.address() + REL::VariantOffset(0x748, NullsubAEOffset, 0x7EE).offset(), Nullsub);  // 5B3738, 5DAB76, 5BB256
 
 			// Hook hkbClipGenerator vfuncs to add/remove/update ActiveClips
 			REL::Relocation<uintptr_t> hkbClipGeneratorVtbl{ RE::VTABLE_hkbClipGenerator[0] };
